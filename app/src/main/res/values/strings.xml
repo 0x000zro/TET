@@ -1,0 +1,48 @@
+<resources>
+    <string name="app_name">EduPrep</string>
+    <string name="app_tagline">Educational Learning Platform Foundation</string>
+    <string name="foundation_title">Foundation Active &amp; Verified</string>
+    <string name="foundation_subtitle">Clean modular architecture configured with Kotlin, Jetpack Compose, Material 3, and Navigation.</string>
+    <string name="status_ready">Operational</string>
+    <string name="enter_dashboard">Enter Application Shell</string>
+    <string name="foundation_badge">Step 2 Foundation</string>
+
+    <!-- Navigation Destinations -->
+    <string name="nav_home">Home</string>
+    <string name="nav_exams">Exams</string>
+    <string name="nav_practice">Practice</string>
+    <string name="nav_mock_tests">Mock Tests</string>
+    <string name="nav_more">More</string>
+    <string name="nav_ebooks">eBooks</string>
+    <string name="nav_videos">Videos</string>
+    <string name="nav_profile_settings">Profile &amp; Settings</string>
+    <string name="nav_modules">Modules</string>
+    <string name="nav_architecture">Architecture</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Home Screen Strings -->
+    <string name="home_greeting">Hello, Student 👋</string>
+    <string name="home_streak">3-Day Streak</string>
+    <string name="home_welcome_title">Prepare with Precision</string>
+    <string name="home_welcome_subtitle">Keep your learning momentum strong with targeted practice sessions and mock drills.</string>
+    <string name="home_selected_exam_label">Target Exam</string>
+    <string name="home_selected_exam_value">National Entrance &amp; Competitive Track 2026</string>
+    <string name="home_change_exam">Switch Exam</string>
+    <string name="home_continue_learning">Continue Learning</string>
+    <string name="home_continue_topic">Thermodynamics &amp; Kinetic Theory</string>
+    <string name="home_continue_subtopic">Physics • Unit 4 • Chapter 2 (65% Complete)</string>
+    <string name="home_resume_button">Resume Session</string>
+    <string name="home_quick_access">Quick Access</string>
+    <string name="home_recent_activity">Recent Activity</string>
+    <string name="home_recent_title">Diagnostic Practice Drill #04</string>
+    <string name="home_recent_subtitle">Scored 85% • Mechanics &amp; Waves • 2 hours ago</string>
+    <string name="home_view_report">Review Summary</string>
+
+    <!-- Component & Common Strings -->
+    <string name="see_all">See All</string>
+    <string name="placeholder_badge">Module Placeholder</string>
+    <string name="placeholder_notice">This section is ready for Step 3 curriculum integration.</string>
+    <string name="action_retry">Try Again</string>
+    <string name="action_explore">Explore Sections</string>
+    <string name="back_navigation">Navigate Back</string>
+</resources>

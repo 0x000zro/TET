@@ -1,0 +1,6 @@
+{
+  "name": "EduPrep",
+  "description": "Native Android educational platform foundation with clean modular architecture and Jetpack Compose.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

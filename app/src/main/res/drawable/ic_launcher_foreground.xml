@@ -1,0 +1,40 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Mortarboard Diamond Cap -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,32 L26,45 L54,58 L82,45 Z" />
+    <!-- Mortarboard Cap Underside Shadow -->
+    <path
+        android:fillColor="#E0E7FF"
+        android:pathData="M54,58 L26,45 L26,47 L54,60 L82,47 L82,45 Z" />
+    <!-- Skullcap Base -->
+    <path
+        android:fillColor="#E0E7FF"
+        android:pathData="M38,51 L38,62 C38,68 45,71 54,71 C63,71 70,68 70,62 L70,51 L54,58 Z" />
+    <!-- Tassel String and Pendant -->
+    <path
+        android:strokeColor="#FFD54F"
+        android:strokeWidth="2"
+        android:pathData="M54,45 Q74,48 76,60 L76,67" />
+    <path
+        android:fillColor="#FFC107"
+        android:pathData="M74,67 L78,67 L77,73 L75,73 Z" />
+    <!-- Open Book Base Layer (Safe Zone centered) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,74 C47,70 38,70 30,73 L30,83 C38,80 47,80 54,84 C61,80 70,80 78,83 L78,73 C70,70 61,70 54,74 Z" />
+    <!-- Open Book Pages Spine Accent -->
+    <path
+        android:strokeColor="#4F46E5"
+        android:strokeWidth="1.5"
+        android:pathData="M54,74 L54,84" />
+    <!-- Spark / Knowledge Star on top -->
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M54,23 L55.5,27.5 L60,29 L55.5,30.5 L54,35 L52.5,30.5 L48,29 L52.5,27.5 Z" />
+</vector>
