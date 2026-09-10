@@ -11,15 +11,20 @@ import com.example.domain.model.EducationalModule
 import com.example.domain.model.Exam
 import com.example.domain.model.LocalPreference
 import com.example.domain.model.Paper
+import com.example.domain.model.Question
+import com.example.domain.model.QuestionOption
 import com.example.domain.model.Subject
 import com.example.domain.model.Subtopic
+import com.example.domain.model.SubtopicWithDetails
 import com.example.domain.model.SyllabusBreadcrumb
 import com.example.domain.model.SyllabusMetadata
 import com.example.domain.model.SyllabusNode
 import com.example.domain.model.SyllabusNodeType
 import com.example.domain.model.SyllabusTreeNode
 import com.example.domain.model.Topic
+import com.example.domain.model.practice.PracticeAttempt
 import com.example.domain.repository.EducationalRepository
+import com.example.domain.validation.QuestionValidator
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -469,5 +474,125 @@ class EducationalRepositoryImpl(
 
     override suspend fun deleteSyllabusMetadata(nodeId: String): Result<Unit> = withContext(ioDispatcher) {
         runCatching { localDataSource.deleteSyllabusMetadata(nodeId) }
+    }
+
+    override fun observeActiveSubtopicsWithDetailsByTopicId(topicId: String): Flow<List<SubtopicWithDetails>> {
+        return localDataSource.observeActiveSubtopicsByTopicId(topicId)
+            .map { subtopics ->
+                val sortedSubtopics = subtopics.sortedWith(compareBy({ it.sortOrder }, { it.name }))
+                sortedSubtopics.map { subtopic ->
+                    val metadata = localDataSource.getSyllabusMetadata(subtopic.id)
+                    val count = localDataSource.getActiveQuestionCountBySubtopicId(subtopic.id)
+                    SubtopicWithDetails(
+                        subtopic = subtopic,
+                        metadata = metadata,
+                        questionCount = count
+                    )
+                }
+            }
+            .catch { emit(emptyList()) }
+    }
+
+    // --- Question Foundation Operations ---
+
+    override fun observeQuestionsForSubtopic(subtopicId: String, activeOnly: Boolean): Flow<List<Question>> {
+        return localDataSource.observeQuestionsBySubtopicId(subtopicId, activeOnly)
+            .catch { emit(emptyList()) }
+    }
+
+    override fun observeQuestionById(id: String): Flow<Question?> {
+        return localDataSource.observeQuestionById(id)
+            .catch { emit(null) }
+    }
+
+    override fun observeQuestion(questionId: String): Flow<Question?> {
+        return observeQuestionById(questionId)
+    }
+
+    override suspend fun getQuestionById(id: String): Question? = withContext(ioDispatcher) {
+        runCatching { localDataSource.getQuestionById(id) }.getOrNull()
+    }
+
+    override suspend fun getQuestionCountBySubtopicId(subtopicId: String): Int = withContext(ioDispatcher) {
+        runCatching { localDataSource.getQuestionCountBySubtopicId(subtopicId) }.getOrDefault(0)
+    }
+
+    override suspend fun getActiveQuestionCountBySubtopicId(subtopicId: String): Int = withContext(ioDispatcher) {
+        runCatching { localDataSource.getActiveQuestionCountBySubtopicId(subtopicId) }.getOrDefault(0)
+    }
+
+    override suspend fun saveQuestion(question: Question): Result<Unit> = withContext(ioDispatcher) {
+        runCatching {
+            val validation = QuestionValidator.validateQuestion(question)
+            require(validation.isValid) {
+                "Question validation failed: ${validation.errors.joinToString { it.message }}"
+            }
+            localDataSource.saveQuestion(question)
+        }
+    }
+
+    override suspend fun saveQuestions(questions: List<Question>): Result<Unit> = withContext(ioDispatcher) {
+        runCatching {
+            val validation = QuestionValidator.validateQuestions(questions)
+            require(validation.isValid) {
+                "Questions validation failed: ${validation.errors.joinToString { it.message }}"
+            }
+            localDataSource.saveQuestions(questions)
+        }
+    }
+
+    override suspend fun deleteQuestionById(id: String): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.deleteQuestionById(id) }
+    }
+
+    override suspend fun deleteQuestionsBySubtopicId(subtopicId: String): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.deleteQuestionsBySubtopicId(subtopicId) }
+    }
+
+    override fun observeOptionsForQuestion(questionId: String): Flow<List<QuestionOption>> {
+        return localDataSource.observeOptionsForQuestion(questionId)
+            .catch { emit(emptyList()) }
+    }
+
+    override suspend fun getOptionsForQuestion(questionId: String): List<QuestionOption> = withContext(ioDispatcher) {
+        runCatching { localDataSource.getOptionsForQuestion(questionId) }.getOrDefault(emptyList())
+    }
+
+    override suspend fun saveOption(option: QuestionOption): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.saveOption(option) }
+    }
+
+    override suspend fun saveOptions(options: List<QuestionOption>): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.saveOptions(options) }
+    }
+
+    override suspend fun deleteOptionById(id: String): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.deleteOptionById(id) }
+    }
+
+    override suspend fun deleteOptionsForQuestion(questionId: String): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.deleteOptionsForQuestion(questionId) }
+    }
+
+    override fun observeAttemptsBySubtopicId(subtopicId: String): Flow<List<PracticeAttempt>> {
+        return localDataSource.observeAttemptsBySubtopicId(subtopicId)
+            .catch { emit(emptyList()) }
+    }
+
+    override fun observeRecentAttempts(limit: Int): Flow<List<PracticeAttempt>> {
+        return localDataSource.observeRecentAttempts(limit)
+            .catch { emit(emptyList()) }
+    }
+
+    override suspend fun getAttemptById(id: String): PracticeAttempt? = withContext(ioDispatcher) {
+        runCatching { localDataSource.getAttemptById(id) }.getOrNull()
+    }
+
+    override suspend fun savePracticeAttempt(attempt: PracticeAttempt): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.savePracticeAttempt(attempt) }
+    }
+
+    override suspend fun deleteAttemptById(id: String): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.deleteAttemptById(id) }
     }
 }

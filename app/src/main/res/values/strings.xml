@@ -45,4 +45,83 @@
     <string name="action_retry">Try Again</string>
     <string name="action_explore">Explore Sections</string>
     <string name="back_navigation">Navigate Back</string>
+
+    <!-- Syllabus Navigation Strings -->
+    <string name="syllabus_title">Syllabus Explorer</string>
+    <string name="syllabus_exams_title">Available Exams</string>
+    <string name="syllabus_papers_title">Exam Papers</string>
+    <string name="syllabus_subjects_title">Subjects</string>
+    <string name="syllabus_topics_title">Topics</string>
+    <string name="syllabus_subtopics_title">Subtopics &amp; Content</string>
+    <string name="syllabus_empty_exams">No active exams available.</string>
+    <string name="syllabus_empty_papers">No active papers found for this exam.</string>
+    <string name="syllabus_empty_subjects">No active subjects found for this paper.</string>
+    <string name="syllabus_empty_topics">No active topics found for this subject.</string>
+    <string name="syllabus_empty_subtopics">No active subtopics found for this topic.</string>
+    <string name="syllabus_questions_available">Questions available: %1$d</string>
+    <string name="syllabus_no_questions">No questions available yet.</string>
+    <string name="syllabus_learning_objective">Learning Objective</string>
+    <string name="syllabus_short_note">Study Note</string>
+    <string name="syllabus_estimated_duration">Est. %1$d mins</string>
+    <string name="syllabus_error_loading">Failed to load syllabus data.</string>
+    <string name="syllabus_breadcrumb_home">Exams</string>
+
+    <!-- Question Presentation Strings (Step 8) -->
+    <string name="question_list_title">Questions</string>
+    <string name="question_detail_title">Question Detail</string>
+    <string name="question_number_label">Question %1$d</string>
+    <string name="question_empty_title">No questions available</string>
+    <string name="question_empty_message">No questions available for this subtopic yet.</string>
+    <string name="question_not_found">Question not found or unavailable.</string>
+    <string name="question_error_loading">Failed to load questions.</string>
+    <string name="question_detail_error_loading">Failed to load question details.</string>
+    <string name="question_explanation_title">Explanation</string>
+    <string name="question_options_title">Options</string>
+    <string name="question_difficulty_easy">Easy</string>
+    <string name="question_difficulty_medium">Medium</string>
+    <string name="question_difficulty_hard">Hard</string>
+    <string name="question_view_questions">Browse Questions</string>
+    <string name="question_option_count">%1$d Options</string>
+    <string name="question_count_label">%1$d Questions</string>
+
+    <!-- Single Question Practice Strings (Step 9) -->
+    <string name="practice_title">Practice Question</string>
+    <string name="practice_breadcrumb_title">Practice</string>
+    <string name="practice_this_question_button">Practice This Question</string>
+    <string name="practice_submit_button">Submit Answer</string>
+    <string name="practice_submitted_button">Answer Submitted</string>
+    <string name="practice_select_prompt">Select an option and submit your answer</string>
+    <string name="practice_result_correct_title">Correct!</string>
+    <string name="practice_result_correct_message">Well done! You selected the right answer.</string>
+    <string name="practice_result_incorrect_title">Incorrect</string>
+    <string name="practice_result_incorrect_message">The option you selected is incorrect. Review the correct answer below.</string>
+    <string name="practice_your_answer_correct">Your Answer (Correct)</string>
+    <string name="practice_your_answer_incorrect">Your Answer (Incorrect)</string>
+    <string name="practice_correct_answer_badge">Correct Answer</string>
+    <string name="practice_load_error">Failed to load practice question.</string>
+    <string name="practice_not_found">Question is not available for practice.</string>
+
+    <!-- Multi-Question Practice Session Strings (Step 10) -->
+    <string name="practice_session_title">Practice Session</string>
+    <string name="practice_start_subtopic_button">Start Practice</string>
+    <string name="practice_next_question">Next Question</string>
+    <string name="practice_finish_session">Finish Practice</string>
+    <string name="practice_session_completed_title">Practice Completed</string>
+    <string name="practice_session_score_label">Overall Score</string>
+    <string name="practice_session_total_questions">Total</string>
+    <string name="practice_session_answered_questions">Answered</string>
+    <string name="practice_session_correct_answers">Correct</string>
+    <string name="practice_session_incorrect_answers">Incorrect</string>
+    <string name="practice_session_restart_button">Practice Again</string>
+    <string name="practice_session_done_button">Back to Subtopic</string>
+    <string name="practice_session_empty_message">There are no active practice questions available for this subtopic yet.</string>
+    <string name="practice_session_progress">Question %1$d of %2$d</string>
+
+    <!-- Practice Attempts & Local Progress Strings (Step 11) -->
+    <string name="practice_history_title">Recent Practice Attempts</string>
+    <string name="practice_history_empty_title">No practice attempts yet</string>
+    <string name="practice_history_empty_desc">Complete a practice session to see your local score history here.</string>
+    <string name="practice_history_accuracy">%1$d/%2$d Correct</string>
+    <string name="practice_history_accuracy_details">%1$d/%2$d Correct • %3$d Incorrect</string>
+    <string name="practice_history_total_questions">%1$d Questions</string>
 </resources>

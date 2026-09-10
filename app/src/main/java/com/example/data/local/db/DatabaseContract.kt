@@ -7,7 +7,7 @@ package com.example.data.local.db
  */
 object DatabaseContract {
     const val DATABASE_NAME = "eduprep_local_offline.db"
-    const val DATABASE_VERSION = 3
+    const val DATABASE_VERSION = 5
 
     // Foundation Table Names
     const val TABLE_APP_STATE = "app_state"
@@ -23,6 +23,13 @@ object DatabaseContract {
 
     // Syllabus Metadata Table Name
     const val TABLE_SYLLABUS_METADATA = "syllabus_metadata"
+
+    // Question Foundation Table Names
+    const val TABLE_QUESTIONS = "questions"
+    const val TABLE_QUESTION_OPTIONS = "question_options"
+
+    // Practice Attempts Table Name (Step 11)
+    const val TABLE_PRACTICE_ATTEMPTS = "practice_attempts"
 
     /**
      * Marker interface for Room DAOs

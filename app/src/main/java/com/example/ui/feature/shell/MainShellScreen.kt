@@ -103,7 +103,12 @@ fun MainShellScreen(
                         )
                     }
 
-                    ShellDestination.Exams,
+                    ShellDestination.Exams -> {
+                        com.example.ui.feature.syllabus.SyllabusScreen(
+                            onNavigateBackToShell = { viewModel.navigateBack() }
+                        )
+                    }
+
                     ShellDestination.Practice,
                     ShellDestination.MockTests,
                     ShellDestination.EBooks,

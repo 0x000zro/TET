@@ -156,10 +156,105 @@ object DatabaseMigrations {
     }
 
     /**
+     * Migration from Version 3 (syllabus metadata) to Version 4 (question foundation).
+     *
+     * Adds:
+     * - questions: Canonical question entities linked directly to subtopics with RESTRICT on delete.
+     * - question_options: Normalized answer options linked directly to questions with CASCADE on delete.
+     *
+     * Preserves:
+     * - app_state
+     * - local_preferences
+     * - content_sync_state
+     * - exams
+     * - papers
+     * - subjects
+     * - topics
+     * - subtopics
+     * - syllabus_metadata
+     */
+    val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // 1. Create questions table
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `questions` (
+                    `id` TEXT NOT NULL,
+                    `subtopic_id` TEXT NOT NULL,
+                    `question_text` TEXT NOT NULL,
+                    `question_type` TEXT NOT NULL,
+                    `difficulty` TEXT NOT NULL,
+                    `explanation` TEXT NOT NULL,
+                    `is_active` INTEGER NOT NULL,
+                    `sort_order` INTEGER NOT NULL,
+                    `updated_at_timestamp` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`),
+                    FOREIGN KEY(`subtopic_id`) REFERENCES `subtopics`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_questions_subtopic_id` ON `questions` (`subtopic_id`)")
+
+            // 2. Create question_options table
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `question_options` (
+                    `id` TEXT NOT NULL,
+                    `question_id` TEXT NOT NULL,
+                    `option_text` TEXT NOT NULL,
+                    `sort_order` INTEGER NOT NULL,
+                    `is_correct` INTEGER NOT NULL,
+                    `updated_at_timestamp` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`),
+                    FOREIGN KEY(`question_id`) REFERENCES `questions`(`id`) ON UPDATE CASCADE ON DELETE CASCADE
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_question_options_question_id` ON `question_options` (`question_id`)")
+        }
+    }
+
+    /**
+     * Migration from Version 4 (question foundation) to Version 5 (practice attempts & local progress).
+     *
+     * Adds:
+     * - practice_attempts: Dedicated table recording student practice completions.
+     *   Indexes subtopic_id for fast subtopic history lookups and completed_at for time-ordered sorting.
+     *
+     * Preserves:
+     * - All existing foundation, educational hierarchy, syllabus metadata, and question tables.
+     */
+    val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `practice_attempts` (
+                    `id` TEXT NOT NULL,
+                    `subtopic_id` TEXT NOT NULL,
+                    `total_questions` INTEGER NOT NULL,
+                    `answered_questions` INTEGER NOT NULL,
+                    `correct_answers` INTEGER NOT NULL,
+                    `incorrect_answers` INTEGER NOT NULL,
+                    `percentage_score` REAL NOT NULL,
+                    `started_at` INTEGER NOT NULL,
+                    `completed_at` INTEGER NOT NULL,
+                    `updated_at_timestamp` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_practice_attempts_subtopic_id` ON `practice_attempts` (`subtopic_id`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_practice_attempts_completed_at` ON `practice_attempts` (`completed_at`)")
+        }
+    }
+
+    /**
      * Array of all defined database migrations.
      */
     val ALL_MIGRATIONS: Array<Migration> = arrayOf(
         MIGRATION_1_2,
-        MIGRATION_2_3
+        MIGRATION_2_3,
+        MIGRATION_3_4,
+        MIGRATION_4_5
     )
 }

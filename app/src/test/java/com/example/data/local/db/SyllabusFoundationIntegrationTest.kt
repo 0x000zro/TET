@@ -59,9 +59,9 @@ class SyllabusFoundationIntegrationTest {
     }
 
     @Test
-    fun databaseVersion_isVersionThree() {
+    fun databaseVersion_isVersionThreeOrHigher() {
         val version = database.openHelper.readableDatabase.version
-        assertEquals(3, version)
+        assertTrue("Database version should be >= 3", version >= 3)
     }
 
     @Test

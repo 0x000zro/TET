@@ -7,14 +7,18 @@ import com.example.domain.model.EducationalModule
 import com.example.domain.model.Exam
 import com.example.domain.model.LocalPreference
 import com.example.domain.model.Paper
+import com.example.domain.model.Question
+import com.example.domain.model.QuestionOption
 import com.example.domain.model.Subject
 import com.example.domain.model.Subtopic
+import com.example.domain.model.SubtopicWithDetails
 import com.example.domain.model.SyllabusBreadcrumb
 import com.example.domain.model.SyllabusMetadata
 import com.example.domain.model.SyllabusNode
 import com.example.domain.model.SyllabusNodeType
 import com.example.domain.model.SyllabusTreeNode
 import com.example.domain.model.Topic
+import com.example.domain.model.practice.PracticeAttempt
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -134,4 +138,36 @@ interface EducationalRepository {
     suspend fun getSyllabusMetadata(nodeId: String): SyllabusMetadata?
     suspend fun saveSyllabusMetadata(metadata: SyllabusMetadata): Result<Unit>
     suspend fun deleteSyllabusMetadata(nodeId: String): Result<Unit>
+
+    /**
+     * Observes active subtopics under a topic enriched with metadata and question counts.
+     * Orders deterministically by sortOrder ASC, name ASC.
+     */
+    fun observeActiveSubtopicsWithDetailsByTopicId(topicId: String): Flow<List<SubtopicWithDetails>>
+
+    // Question Foundation Operations
+    fun observeQuestionsForSubtopic(subtopicId: String, activeOnly: Boolean = true): Flow<List<Question>>
+    fun observeQuestionById(id: String): Flow<Question?>
+    fun observeQuestion(questionId: String): Flow<Question?> = observeQuestionById(questionId)
+    suspend fun getQuestionById(id: String): Question?
+    suspend fun getQuestionCountBySubtopicId(subtopicId: String): Int
+    suspend fun getActiveQuestionCountBySubtopicId(subtopicId: String): Int
+    suspend fun saveQuestion(question: Question): Result<Unit>
+    suspend fun saveQuestions(questions: List<Question>): Result<Unit>
+    suspend fun deleteQuestionById(id: String): Result<Unit>
+    suspend fun deleteQuestionsBySubtopicId(subtopicId: String): Result<Unit>
+
+    fun observeOptionsForQuestion(questionId: String): Flow<List<QuestionOption>>
+    suspend fun getOptionsForQuestion(questionId: String): List<QuestionOption>
+    suspend fun saveOption(option: QuestionOption): Result<Unit>
+    suspend fun saveOptions(options: List<QuestionOption>): Result<Unit>
+    suspend fun deleteOptionById(id: String): Result<Unit>
+    suspend fun deleteOptionsForQuestion(questionId: String): Result<Unit>
+
+    // Practice Attempt Operations (Step 11)
+    fun observeAttemptsBySubtopicId(subtopicId: String): Flow<List<PracticeAttempt>>
+    fun observeRecentAttempts(limit: Int = 20): Flow<List<PracticeAttempt>>
+    suspend fun getAttemptById(id: String): PracticeAttempt?
+    suspend fun savePracticeAttempt(attempt: PracticeAttempt): Result<Unit>
+    suspend fun deleteAttemptById(id: String): Result<Unit>
 }

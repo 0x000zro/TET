@@ -13,10 +13,13 @@ import com.example.domain.model.EducationalModuleId
 import com.example.domain.model.Exam
 import com.example.domain.model.LocalPreference
 import com.example.domain.model.Paper
+import com.example.domain.model.Question
+import com.example.domain.model.QuestionOption
 import com.example.domain.model.Subject
 import com.example.domain.model.Subtopic
 import com.example.domain.model.SyllabusMetadata
 import com.example.domain.model.Topic
+import com.example.domain.model.practice.PracticeAttempt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -95,6 +98,32 @@ interface LocalEducationalDataSource {
     suspend fun getSyllabusMetadataList(nodeIds: List<String>): List<SyllabusMetadata>
     suspend fun saveSyllabusMetadata(metadata: SyllabusMetadata)
     suspend fun deleteSyllabusMetadata(nodeId: String)
+
+    // Question Foundation operations
+    fun observeQuestionsBySubtopicId(subtopicId: String, activeOnly: Boolean = true): Flow<List<Question>>
+    fun observeQuestionById(id: String): Flow<Question?>
+    suspend fun getQuestionById(id: String): Question?
+    suspend fun getQuestionCountBySubtopicId(subtopicId: String): Int
+    suspend fun getActiveQuestionCountBySubtopicId(subtopicId: String): Int
+    fun observeActiveQuestionCountBySubtopicId(subtopicId: String): Flow<Int>
+    suspend fun saveQuestion(question: Question)
+    suspend fun saveQuestions(questions: List<Question>)
+    suspend fun deleteQuestionById(id: String)
+    suspend fun deleteQuestionsBySubtopicId(subtopicId: String)
+
+    fun observeOptionsForQuestion(questionId: String): Flow<List<QuestionOption>>
+    suspend fun getOptionsForQuestion(questionId: String): List<QuestionOption>
+    suspend fun saveOption(option: QuestionOption)
+    suspend fun saveOptions(options: List<QuestionOption>)
+    suspend fun deleteOptionById(id: String)
+    suspend fun deleteOptionsForQuestion(questionId: String)
+
+    // Practice Attempt operations (Step 11)
+    fun observeAttemptsBySubtopicId(subtopicId: String): Flow<List<PracticeAttempt>>
+    fun observeRecentAttempts(limit: Int = 20): Flow<List<PracticeAttempt>>
+    suspend fun getAttemptById(id: String): PracticeAttempt?
+    suspend fun savePracticeAttempt(attempt: PracticeAttempt)
+    suspend fun deleteAttemptById(id: String)
 }
 
 class DefaultLocalEducationalDataSource(
@@ -448,5 +477,124 @@ class DefaultLocalEducationalDataSource(
 
     override suspend fun deleteSyllabusMetadata(nodeId: String) {
         database?.syllabusMetadataDao()?.deleteMetadataByNodeId(nodeId)
+    }
+
+    // --- Question Foundation Operations ---
+
+    override fun observeQuestionsBySubtopicId(subtopicId: String, activeOnly: Boolean): Flow<List<Question>> {
+        val dao = database?.questionDao() ?: return flowOf(emptyList())
+        val flow = if (activeOnly) {
+            dao.getActiveQuestionsWithOptionsBySubtopicIdFlow(subtopicId)
+        } else {
+            dao.getQuestionsWithOptionsBySubtopicIdFlow(subtopicId)
+        }
+        return flow.map { list ->
+            list.map { it.toDomain() }
+                .sortedWith(compareBy({ it.sortOrder }, { it.id }))
+        }
+    }
+
+    override fun observeQuestionById(id: String): Flow<Question?> {
+        val dao = database?.questionDao() ?: return flowOf(null)
+        return dao.getQuestionWithOptionsByIdFlow(id).map { it?.toDomain() }
+    }
+
+    override suspend fun getQuestionById(id: String): Question? {
+        return database?.questionDao()?.getQuestionWithOptionsById(id)?.toDomain()
+    }
+
+    override suspend fun getQuestionCountBySubtopicId(subtopicId: String): Int {
+        return database?.questionDao()?.getQuestionCountBySubtopicId(subtopicId) ?: 0
+    }
+
+    override suspend fun getActiveQuestionCountBySubtopicId(subtopicId: String): Int {
+        return database?.questionDao()?.getActiveQuestionCountBySubtopicId(subtopicId) ?: 0
+    }
+
+    override fun observeActiveQuestionCountBySubtopicId(subtopicId: String): Flow<Int> {
+        val dao = database?.questionDao() ?: return flowOf(0)
+        return dao.getActiveQuestionCountBySubtopicIdFlow(subtopicId)
+    }
+
+    override suspend fun saveQuestion(question: Question) {
+        val qDao = database?.questionDao() ?: return
+        val optDao = database?.questionOptionDao() ?: return
+        qDao.insertOrUpdateQuestion(question.toEntity())
+        if (question.options.isNotEmpty()) {
+            optDao.insertOrUpdateOptions(question.options.map { it.toEntity() })
+        }
+    }
+
+    override suspend fun saveQuestions(questions: List<Question>) {
+        val qDao = database?.questionDao() ?: return
+        val optDao = database?.questionOptionDao() ?: return
+        qDao.insertOrUpdateQuestions(questions.map { it.toEntity() })
+        val allOptions = questions.flatMap { it.options }
+        if (allOptions.isNotEmpty()) {
+            optDao.insertOrUpdateOptions(allOptions.map { it.toEntity() })
+        }
+    }
+
+    override suspend fun deleteQuestionById(id: String) {
+        database?.questionDao()?.deleteQuestionById(id)
+    }
+
+    override suspend fun deleteQuestionsBySubtopicId(subtopicId: String) {
+        database?.questionDao()?.deleteQuestionsBySubtopicId(subtopicId)
+    }
+
+    override fun observeOptionsForQuestion(questionId: String): Flow<List<QuestionOption>> {
+        val dao = database?.questionOptionDao() ?: return flowOf(emptyList())
+        return dao.getOptionsForQuestionFlow(questionId).map { list ->
+            list.map { it.toDomain() }.sortedWith(compareBy({ it.sortOrder }, { it.id }))
+        }
+    }
+
+    override suspend fun getOptionsForQuestion(questionId: String): List<QuestionOption> {
+        val dao = database?.questionOptionDao() ?: return emptyList()
+        return dao.getOptionsForQuestion(questionId).map { it.toDomain() }
+            .sortedWith(compareBy({ it.sortOrder }, { it.id }))
+    }
+
+    override suspend fun saveOption(option: QuestionOption) {
+        database?.questionOptionDao()?.insertOrUpdateOption(option.toEntity())
+    }
+
+    override suspend fun saveOptions(options: List<QuestionOption>) {
+        database?.questionOptionDao()?.insertOrUpdateOptions(options.map { it.toEntity() })
+    }
+
+    override suspend fun deleteOptionById(id: String) {
+        database?.questionOptionDao()?.deleteOptionById(id)
+    }
+
+    override suspend fun deleteOptionsForQuestion(questionId: String) {
+        database?.questionOptionDao()?.deleteOptionsForQuestion(questionId)
+    }
+
+    override fun observeAttemptsBySubtopicId(subtopicId: String): Flow<List<PracticeAttempt>> {
+        val dao = database?.practiceAttemptDao() ?: return flowOf(emptyList())
+        return dao.getAttemptsBySubtopicIdFlow(subtopicId).map { list ->
+            list.map { it.toDomain() }
+        }
+    }
+
+    override fun observeRecentAttempts(limit: Int): Flow<List<PracticeAttempt>> {
+        val dao = database?.practiceAttemptDao() ?: return flowOf(emptyList())
+        return dao.getRecentAttemptsFlow(limit).map { list ->
+            list.map { it.toDomain() }
+        }
+    }
+
+    override suspend fun getAttemptById(id: String): PracticeAttempt? {
+        return database?.practiceAttemptDao()?.getAttemptById(id)?.toDomain()
+    }
+
+    override suspend fun savePracticeAttempt(attempt: PracticeAttempt) {
+        database?.practiceAttemptDao()?.insertOrUpdateAttempt(attempt.toEntity())
+    }
+
+    override suspend fun deleteAttemptById(id: String) {
+        database?.practiceAttemptDao()?.deleteAttemptById(id)
     }
 }

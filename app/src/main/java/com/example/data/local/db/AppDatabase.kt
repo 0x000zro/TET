@@ -9,6 +9,9 @@ import com.example.data.local.db.dao.ContentSyncStateDao
 import com.example.data.local.db.dao.ExamDao
 import com.example.data.local.db.dao.LocalPreferenceDao
 import com.example.data.local.db.dao.PaperDao
+import com.example.data.local.db.dao.PracticeAttemptDao
+import com.example.data.local.db.dao.QuestionDao
+import com.example.data.local.db.dao.QuestionOptionDao
 import com.example.data.local.db.dao.SubjectDao
 import com.example.data.local.db.dao.SubtopicDao
 import com.example.data.local.db.dao.SyllabusMetadataDao
@@ -18,6 +21,9 @@ import com.example.data.local.db.entity.ContentSyncStateEntity
 import com.example.data.local.db.entity.ExamEntity
 import com.example.data.local.db.entity.LocalPreferenceEntity
 import com.example.data.local.db.entity.PaperEntity
+import com.example.data.local.db.entity.PracticeAttemptEntity
+import com.example.data.local.db.entity.QuestionEntity
+import com.example.data.local.db.entity.QuestionOptionEntity
 import com.example.data.local.db.entity.SubjectEntity
 import com.example.data.local.db.entity.SubtopicEntity
 import com.example.data.local.db.entity.SyllabusMetadataEntity
@@ -45,7 +51,12 @@ import com.example.data.local.db.entity.TopicEntity
         TopicEntity::class,
         SubtopicEntity::class,
         // Syllabus Metadata Entity (v3)
-        SyllabusMetadataEntity::class
+        SyllabusMetadataEntity::class,
+        // Question Foundation Entities (v4)
+        QuestionEntity::class,
+        QuestionOptionEntity::class,
+        // Practice Attempts Entity (v5)
+        PracticeAttemptEntity::class
     ],
     version = DatabaseContract.DATABASE_VERSION,
     exportSchema = false
@@ -66,6 +77,13 @@ abstract class AppDatabase : RoomDatabase() {
 
     // Syllabus Metadata DAO
     abstract fun syllabusMetadataDao(): SyllabusMetadataDao
+
+    // Question Foundation DAOs
+    abstract fun questionDao(): QuestionDao
+    abstract fun questionOptionDao(): QuestionOptionDao
+
+    // Practice Attempts DAO (Step 11)
+    abstract fun practiceAttemptDao(): PracticeAttemptDao
 
     companion object {
         @Volatile

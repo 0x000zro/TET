@@ -5,6 +5,10 @@ import com.example.data.local.db.entity.ContentSyncStateEntity
 import com.example.data.local.db.entity.ExamEntity
 import com.example.data.local.db.entity.LocalPreferenceEntity
 import com.example.data.local.db.entity.PaperEntity
+import com.example.data.local.db.entity.PracticeAttemptEntity
+import com.example.data.local.db.entity.QuestionEntity
+import com.example.data.local.db.entity.QuestionOptionEntity
+import com.example.data.local.db.entity.QuestionWithOptionsEntity
 import com.example.data.local.db.entity.SubjectEntity
 import com.example.data.local.db.entity.SubtopicEntity
 import com.example.data.local.db.entity.TopicEntity
@@ -13,10 +17,15 @@ import com.example.domain.model.ContentSyncState
 import com.example.domain.model.Exam
 import com.example.domain.model.LocalPreference
 import com.example.domain.model.Paper
+import com.example.domain.model.Question
+import com.example.domain.model.QuestionDifficulty
+import com.example.domain.model.QuestionOption
+import com.example.domain.model.QuestionType
 import com.example.domain.model.Subject
 import com.example.domain.model.Subtopic
 import com.example.domain.model.SyncStatus
 import com.example.domain.model.Topic
+import com.example.domain.model.practice.PracticeAttempt
 
 /**
  * Clean Architecture mappers converting between Room database entities
@@ -303,6 +312,92 @@ object DatabaseMappers {
             sortOrder = this.sortOrder,
             learningObjective = metadata?.learningObjective.orEmpty(),
             shortNote = metadata?.shortNote.orEmpty()
+        )
+    }
+
+    // --- Question Foundation Mappers ---
+
+    fun QuestionEntity.toDomain(options: List<QuestionOption> = emptyList()): Question {
+        return Question(
+            id = this.id,
+            subtopicId = this.subtopicId,
+            questionText = this.questionText,
+            questionType = QuestionType.fromString(this.questionType),
+            difficulty = QuestionDifficulty.fromString(this.difficulty),
+            explanation = this.explanation,
+            isActive = this.isActive,
+            sortOrder = this.sortOrder,
+            options = options.sortedWith(compareBy({ it.sortOrder }, { it.id }))
+        )
+    }
+
+    fun Question.toEntity(): QuestionEntity {
+        return QuestionEntity(
+            id = this.id,
+            subtopicId = this.subtopicId,
+            questionText = this.questionText,
+            questionType = this.questionType.name,
+            difficulty = this.difficulty.name,
+            explanation = this.explanation,
+            isActive = this.isActive,
+            sortOrder = this.sortOrder,
+            updatedAtTimestamp = System.currentTimeMillis()
+        )
+    }
+
+    fun QuestionOptionEntity.toDomain(): QuestionOption {
+        return QuestionOption(
+            id = this.id,
+            questionId = this.questionId,
+            optionText = this.optionText,
+            sortOrder = this.sortOrder,
+            isCorrect = this.isCorrect
+        )
+    }
+
+    fun QuestionOption.toEntity(): QuestionOptionEntity {
+        return QuestionOptionEntity(
+            id = this.id,
+            questionId = this.questionId,
+            optionText = this.optionText,
+            sortOrder = this.sortOrder,
+            isCorrect = this.isCorrect,
+            updatedAtTimestamp = System.currentTimeMillis()
+        )
+    }
+
+    fun QuestionWithOptionsEntity.toDomain(): Question {
+        return this.question.toDomain(
+            options = this.options.map { it.toDomain() }
+        )
+    }
+
+    fun PracticeAttemptEntity.toDomain(): PracticeAttempt {
+        return PracticeAttempt(
+            id = this.id,
+            subtopicId = this.subtopicId,
+            totalQuestions = this.totalQuestions,
+            answeredQuestions = this.answeredQuestions,
+            correctAnswers = this.correctAnswers,
+            incorrectAnswers = this.incorrectAnswers,
+            percentageScore = this.percentageScore,
+            startedAt = this.startedAt,
+            completedAt = this.completedAt
+        )
+    }
+
+    fun PracticeAttempt.toEntity(): PracticeAttemptEntity {
+        return PracticeAttemptEntity(
+            id = this.id,
+            subtopicId = this.subtopicId,
+            totalQuestions = this.totalQuestions,
+            answeredQuestions = this.answeredQuestions,
+            correctAnswers = this.correctAnswers,
+            incorrectAnswers = this.incorrectAnswers,
+            percentageScore = this.percentageScore,
+            startedAt = this.startedAt,
+            completedAt = this.completedAt,
+            updatedAtTimestamp = System.currentTimeMillis()
         )
     }
 }
