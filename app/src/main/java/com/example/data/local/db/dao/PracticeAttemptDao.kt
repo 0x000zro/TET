@@ -41,6 +41,12 @@ interface PracticeAttemptDao : DatabaseContract.BaseDao {
     @Query("SELECT * FROM practice_attempts ORDER BY completed_at DESC, id DESC LIMIT :limit")
     fun getRecentAttemptsFlow(limit: Int = 20): Flow<List<PracticeAttemptEntity>>
 
+    @Query("SELECT * FROM practice_attempts ORDER BY completed_at DESC, id DESC")
+    fun getAllAttemptsFlow(): Flow<List<PracticeAttemptEntity>>
+
+    @Query("SELECT * FROM practice_attempts ORDER BY completed_at DESC, id DESC")
+    suspend fun getAllAttempts(): List<PracticeAttemptEntity>
+
     @Query("SELECT COUNT(*) FROM practice_attempts WHERE subtopic_id = :subtopicId")
     suspend fun getAttemptCountBySubtopicId(subtopicId: String): Int
 

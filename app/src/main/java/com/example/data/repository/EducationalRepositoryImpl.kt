@@ -584,6 +584,15 @@ class EducationalRepositoryImpl(
             .catch { emit(emptyList()) }
     }
 
+    override fun observeAllPracticeAttempts(): Flow<List<PracticeAttempt>> {
+        return localDataSource.observeAllPracticeAttempts()
+            .catch { emit(emptyList()) }
+    }
+
+    override suspend fun getAllPracticeAttempts(): List<PracticeAttempt> = withContext(ioDispatcher) {
+        runCatching { localDataSource.getAllPracticeAttempts() }.getOrDefault(emptyList())
+    }
+
     override suspend fun getAttemptById(id: String): PracticeAttempt? = withContext(ioDispatcher) {
         runCatching { localDataSource.getAttemptById(id) }.getOrNull()
     }

@@ -124,4 +124,22 @@
     <string name="practice_history_accuracy">%1$d/%2$d Correct</string>
     <string name="practice_history_accuracy_details">%1$d/%2$d Correct • %3$d Incorrect</string>
     <string name="practice_history_total_questions">%1$d Questions</string>
+
+    <!-- Student Progress & Performance Strings (Step 12) -->
+    <string name="nav_performance">Performance</string>
+    <string name="performance_title">Student Performance</string>
+    <string name="performance_overview_title">Overall Performance</string>
+    <string name="performance_completed_practices">Completed Practices</string>
+    <string name="performance_questions_attempted">Questions Attempted</string>
+    <string name="performance_correct_answers">Correct Answers</string>
+    <string name="performance_incorrect_answers">Incorrect Answers</string>
+    <string name="performance_accuracy">Overall Accuracy</string>
+    <string name="performance_subtopic_breakdown">Subtopic Performance</string>
+    <string name="performance_empty_title">No Performance Data Yet</string>
+    <string name="performance_empty_desc">Complete practice sessions on any subtopic to track your accuracy, questions answered, and progress here.</string>
+    <string name="performance_attempts_count">%1$d Attempts</string>
+    <string name="performance_questions_count">%1$d Questions</string>
+    <string name="performance_accuracy_format">%.1f%%</string>
+    <string name="performance_load_error">Failed to load performance metrics.</string>
+    <string name="performance_retry">Retry</string>
 </resources>

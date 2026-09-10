@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Assessment
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MenuBook
@@ -100,6 +102,14 @@ sealed class ShellDestination(
         titleResId = R.string.nav_profile_settings,
         selectedIcon = Icons.Filled.AccountCircle,
         unselectedIcon = Icons.Outlined.AccountCircle,
+        isPrimaryBottomNav = false
+    )
+
+    data object Performance : ShellDestination(
+        route = "shell_performance",
+        titleResId = R.string.nav_performance,
+        selectedIcon = Icons.Filled.Assessment,
+        unselectedIcon = Icons.Outlined.Assessment,
         isPrimaryBottomNav = false
     )
 

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MenuBook
@@ -104,6 +105,17 @@ fun MoreTabContent(
                     SectionHeader(
                         title = "Secondary Modules",
                         subtitle = "Additional learning materials and settings."
+                    )
+                }
+
+                item {
+                    FeatureCard(
+                        title = stringResource(R.string.nav_performance),
+                        description = "Track practice attempts, answered questions, accuracy, and subtopic progress",
+                        icon = Icons.Default.Assessment,
+                        tag = "Analytics",
+                        onClick = { onNavigateToDestination(ShellDestination.Performance) },
+                        testTag = "more_performance_card"
                     )
                 }
 

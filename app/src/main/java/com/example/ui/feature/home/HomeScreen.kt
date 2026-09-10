@@ -458,7 +458,7 @@ fun HomeScreen(
 
                                 SecondaryButton(
                                     text = stringResource(R.string.home_view_report),
-                                    onClick = { onNavigateToDestination(ShellDestination.Practice) },
+                                    onClick = { onNavigateToDestination(ShellDestination.Performance) },
                                     modifier = Modifier.fillMaxWidth(),
                                     testTag = "review_summary_button"
                                 )

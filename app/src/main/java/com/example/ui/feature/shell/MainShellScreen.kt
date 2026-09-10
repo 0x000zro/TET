@@ -109,6 +109,12 @@ fun MainShellScreen(
                         )
                     }
 
+                    ShellDestination.Performance -> {
+                        com.example.ui.feature.performance.PerformanceScreen(
+                            onNavigateBack = { viewModel.navigateBack() }
+                        )
+                    }
+
                     ShellDestination.Practice,
                     ShellDestination.MockTests,
                     ShellDestination.EBooks,

@@ -152,7 +152,18 @@ open class TestEducationalRepository : EducationalRepository {
     }
 
     override fun observeRecentAttempts(limit: Int): Flow<List<PracticeAttempt>> = flow {
+        if (shouldThrowOnAttempt) throw RuntimeException("Simulated attempt database failure")
         emit(practiceAttempts.sortedWith(compareByDescending<PracticeAttempt> { it.completedAt }.thenByDescending { it.id }).take(limit))
+    }
+
+    override fun observeAllPracticeAttempts(): Flow<List<PracticeAttempt>> = flow {
+        if (shouldThrowOnAttempt) throw RuntimeException("Simulated attempt database failure")
+        emit(practiceAttempts.sortedWith(compareByDescending<PracticeAttempt> { it.completedAt }.thenByDescending { it.id }))
+    }
+
+    override suspend fun getAllPracticeAttempts(): List<PracticeAttempt> {
+        if (shouldThrowOnAttempt) throw RuntimeException("Simulated attempt database failure")
+        return practiceAttempts.sortedWith(compareByDescending<PracticeAttempt> { it.completedAt }.thenByDescending { it.id })
     }
 
     override suspend fun getAttemptById(id: String): PracticeAttempt? {

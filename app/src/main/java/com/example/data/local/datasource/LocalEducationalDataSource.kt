@@ -118,9 +118,11 @@ interface LocalEducationalDataSource {
     suspend fun deleteOptionById(id: String)
     suspend fun deleteOptionsForQuestion(questionId: String)
 
-    // Practice Attempt operations (Step 11)
+    // Practice Attempt operations (Step 11 & 12)
     fun observeAttemptsBySubtopicId(subtopicId: String): Flow<List<PracticeAttempt>>
     fun observeRecentAttempts(limit: Int = 20): Flow<List<PracticeAttempt>>
+    fun observeAllPracticeAttempts(): Flow<List<PracticeAttempt>>
+    suspend fun getAllPracticeAttempts(): List<PracticeAttempt>
     suspend fun getAttemptById(id: String): PracticeAttempt?
     suspend fun savePracticeAttempt(attempt: PracticeAttempt)
     suspend fun deleteAttemptById(id: String)
@@ -584,6 +586,18 @@ class DefaultLocalEducationalDataSource(
         return dao.getRecentAttemptsFlow(limit).map { list ->
             list.map { it.toDomain() }
         }
+    }
+
+    override fun observeAllPracticeAttempts(): Flow<List<PracticeAttempt>> {
+        val dao = database?.practiceAttemptDao() ?: return flowOf(emptyList())
+        return dao.getAllAttemptsFlow().map { list ->
+            list.map { it.toDomain() }
+        }
+    }
+
+    override suspend fun getAllPracticeAttempts(): List<PracticeAttempt> {
+        val dao = database?.practiceAttemptDao() ?: return emptyList()
+        return dao.getAllAttempts().map { it.toDomain() }
     }
 
     override suspend fun getAttemptById(id: String): PracticeAttempt? {

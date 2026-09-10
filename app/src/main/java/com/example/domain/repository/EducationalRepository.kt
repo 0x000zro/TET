@@ -164,9 +164,11 @@ interface EducationalRepository {
     suspend fun deleteOptionById(id: String): Result<Unit>
     suspend fun deleteOptionsForQuestion(questionId: String): Result<Unit>
 
-    // Practice Attempt Operations (Step 11)
+    // Practice Attempt Operations (Step 11 & 12)
     fun observeAttemptsBySubtopicId(subtopicId: String): Flow<List<PracticeAttempt>>
     fun observeRecentAttempts(limit: Int = 20): Flow<List<PracticeAttempt>>
+    fun observeAllPracticeAttempts(): Flow<List<PracticeAttempt>>
+    suspend fun getAllPracticeAttempts(): List<PracticeAttempt>
     suspend fun getAttemptById(id: String): PracticeAttempt?
     suspend fun savePracticeAttempt(attempt: PracticeAttempt): Result<Unit>
     suspend fun deleteAttemptById(id: String): Result<Unit>

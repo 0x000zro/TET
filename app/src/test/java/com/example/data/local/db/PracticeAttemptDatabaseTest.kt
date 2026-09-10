@@ -464,4 +464,44 @@ class PracticeAttemptDatabaseTest {
         dbV5.close()
         context.deleteDatabase(dbName)
     }
+
+    @Test
+    fun `repository observeAllPracticeAttempts returns all attempts ordered by completed_at desc`() = runTest {
+        val attempt1 = PracticeAttempt(
+            id = "att_all_1",
+            subtopicId = subtopicId1,
+            totalQuestions = 5,
+            answeredQuestions = 5,
+            correctAnswers = 4,
+            incorrectAnswers = 1,
+            percentageScore = 80.0,
+            startedAt = 1000L,
+            completedAt = 2000L
+        )
+        val attempt2 = PracticeAttempt(
+            id = "att_all_2",
+            subtopicId = subtopicId1,
+            totalQuestions = 10,
+            answeredQuestions = 10,
+            correctAnswers = 9,
+            incorrectAnswers = 1,
+            percentageScore = 90.0,
+            startedAt = 2500L,
+            completedAt = 3500L
+        )
+
+        repository.savePracticeAttempt(attempt1)
+        repository.savePracticeAttempt(attempt2)
+
+        val allAttempts = repository.observeAllPracticeAttempts().first()
+        assertEquals(2, allAttempts.size)
+        // Most recent first: att_all_2 (completedAt 3500) then att_all_1 (completedAt 2000)
+        assertEquals("att_all_2", allAttempts[0].id)
+        assertEquals("att_all_1", allAttempts[1].id)
+
+        val allList = repository.getAllPracticeAttempts()
+        assertEquals(2, allList.size)
+        assertEquals("att_all_2", allList[0].id)
+        assertEquals("att_all_1", allList[1].id)
+    }
 }

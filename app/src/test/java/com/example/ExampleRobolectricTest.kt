@@ -33,6 +33,7 @@ class ExampleRobolectricTest {
     assertEquals("eBooks", context.getString(ShellDestination.EBooks.titleResId))
     assertEquals("Videos", context.getString(ShellDestination.Videos.titleResId))
     assertEquals("Profile & Settings", context.getString(ShellDestination.ProfileSettings.titleResId))
+    assertEquals("Performance", context.getString(ShellDestination.Performance.titleResId))
   }
 
   @Test
