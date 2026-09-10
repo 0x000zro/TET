@@ -21,8 +21,10 @@ import com.example.domain.model.Topic
 import com.example.domain.model.practice.PracticeAttempt
 import com.example.domain.repository.EducationalRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 
 open class TestEducationalRepository : EducationalRepository {
     val questionsMap = mutableMapOf<String, Question>()
@@ -185,5 +187,169 @@ open class TestEducationalRepository : EducationalRepository {
     override suspend fun deleteAttemptById(id: String): Result<Unit> {
         practiceAttempts.removeIf { it.id == id }
         return Result.success(Unit)
+    }
+
+    val wrongQuestions = mutableListOf<com.example.domain.model.wrongquestion.WrongQuestion>()
+    val wrongQuestionsUpdateSignal = MutableStateFlow(0)
+    var shouldThrowOnWrongQuestion = false
+
+    fun notifyWrongQuestionsChanged() {
+        wrongQuestionsUpdateSignal.value = wrongQuestionsUpdateSignal.value + 1
+    }
+
+    override fun observeAllWrongQuestions(): Flow<List<com.example.domain.model.wrongquestion.WrongQuestion>> =
+        wrongQuestionsUpdateSignal.map {
+            if (shouldThrowOnWrongQuestion) throw RuntimeException("Simulated wrong question failure")
+            wrongQuestions.sortedByDescending { it.lastWrongAt }
+        }
+
+    override fun observeWrongQuestionsBySubtopicId(subtopicId: String): Flow<List<com.example.domain.model.wrongquestion.WrongQuestion>> =
+        wrongQuestionsUpdateSignal.map {
+            if (shouldThrowOnWrongQuestion) throw RuntimeException("Simulated wrong question failure")
+            wrongQuestions.filter { it.subtopicId == subtopicId }.sortedByDescending { it.lastWrongAt }
+        }
+
+    override suspend fun getWrongQuestionsBySubtopicId(subtopicId: String): List<com.example.domain.model.wrongquestion.WrongQuestion> {
+        if (shouldThrowOnWrongQuestion) throw RuntimeException("Simulated wrong question failure")
+        return wrongQuestions.filter { it.subtopicId == subtopicId }.sortedByDescending { it.lastWrongAt }
+    }
+
+    override suspend fun getWrongQuestionByQuestionId(questionId: String): com.example.domain.model.wrongquestion.WrongQuestion? {
+        if (shouldThrowOnWrongQuestion) throw RuntimeException("Simulated wrong question failure")
+        return wrongQuestions.find { it.questionId == questionId }
+    }
+
+    override suspend fun recordMistake(
+        questionId: String,
+        subtopicId: String,
+        attemptId: String?,
+        timestamp: Long
+    ): Result<Unit> {
+        if (shouldThrowOnWrongQuestion) return Result.failure(RuntimeException("Simulated mistake recording failure"))
+        val existingIndex = wrongQuestions.indexOfFirst { it.questionId == questionId }
+        if (existingIndex >= 0) {
+            val existing = wrongQuestions[existingIndex]
+            wrongQuestions[existingIndex] = existing.copy(
+                subtopicId = subtopicId,
+                lastWrongAt = timestamp,
+                wrongCount = existing.wrongCount + 1,
+                lastAttemptId = attemptId
+            )
+        } else {
+            wrongQuestions.add(
+                com.example.domain.model.wrongquestion.WrongQuestion(
+                    questionId = questionId,
+                    subtopicId = subtopicId,
+                    firstWrongAt = timestamp,
+                    lastWrongAt = timestamp,
+                    wrongCount = 1,
+                    lastAttemptId = attemptId
+                )
+            )
+        }
+        notifyWrongQuestionsChanged()
+        return Result.success(Unit)
+    }
+
+    override suspend fun deleteWrongQuestion(questionId: String): Result<Unit> {
+        if (shouldThrowOnWrongQuestion) return Result.failure(RuntimeException("Simulated mistake delete failure"))
+        wrongQuestions.removeIf { it.questionId == questionId }
+        notifyWrongQuestionsChanged()
+        return Result.success(Unit)
+    }
+
+    val bookmarkedQuestions = mutableListOf<com.example.domain.model.bookmark.BookmarkedQuestion>()
+    val bookmarkUpdateSignal = MutableStateFlow(0)
+    var shouldThrowOnBookmark = false
+
+    fun notifyBookmarksChanged() {
+        bookmarkUpdateSignal.value = bookmarkUpdateSignal.value + 1
+    }
+
+    override fun observeAllBookmarkedQuestions(): Flow<List<com.example.domain.model.bookmark.BookmarkedQuestion>> =
+        bookmarkUpdateSignal.map {
+            if (shouldThrowOnBookmark) throw RuntimeException("Simulated bookmark failure")
+            bookmarkedQuestions.sortedByDescending { it.bookmarkedAt }
+        }
+
+    override fun observeBookmarkedQuestionsBySubtopicId(subtopicId: String): Flow<List<com.example.domain.model.bookmark.BookmarkedQuestion>> =
+        bookmarkUpdateSignal.map {
+            if (shouldThrowOnBookmark) throw RuntimeException("Simulated bookmark failure")
+            bookmarkedQuestions.filter { it.subtopicId == subtopicId }.sortedByDescending { it.bookmarkedAt }
+        }
+
+    override suspend fun getBookmarkedQuestionsBySubtopicId(subtopicId: String): List<com.example.domain.model.bookmark.BookmarkedQuestion> {
+        if (shouldThrowOnBookmark) throw RuntimeException("Simulated bookmark failure")
+        return bookmarkedQuestions.filter { it.subtopicId == subtopicId }.sortedByDescending { it.bookmarkedAt }
+    }
+
+    override suspend fun getBookmarkedQuestionByQuestionId(questionId: String): com.example.domain.model.bookmark.BookmarkedQuestion? {
+        if (shouldThrowOnBookmark) throw RuntimeException("Simulated bookmark failure")
+        return bookmarkedQuestions.find { it.questionId == questionId }
+    }
+
+    override fun observeIsBookmarked(questionId: String): Flow<Boolean> =
+        bookmarkUpdateSignal.map {
+            if (shouldThrowOnBookmark) throw RuntimeException("Simulated bookmark failure")
+            bookmarkedQuestions.any { it.questionId == questionId }
+        }
+
+    override suspend fun isBookmarked(questionId: String): Boolean {
+        if (shouldThrowOnBookmark) throw RuntimeException("Simulated bookmark failure")
+        return bookmarkedQuestions.any { it.questionId == questionId }
+    }
+
+    override suspend fun saveBookmark(questionId: String, subtopicId: String, timestamp: Long): Result<Unit> {
+        if (shouldThrowOnBookmark) return Result.failure(RuntimeException("Simulated save bookmark failure"))
+        val existingIndex = bookmarkedQuestions.indexOfFirst { it.questionId == questionId }
+        if (existingIndex < 0) {
+            bookmarkedQuestions.add(
+                com.example.domain.model.bookmark.BookmarkedQuestion(
+                    questionId = questionId,
+                    subtopicId = subtopicId,
+                    bookmarkedAt = timestamp
+                )
+            )
+            notifyBookmarksChanged()
+        }
+        return Result.success(Unit)
+    }
+
+    override suspend fun deleteBookmark(questionId: String): Result<Unit> {
+        if (shouldThrowOnBookmark) return Result.failure(RuntimeException("Simulated delete bookmark failure"))
+        bookmarkedQuestions.removeIf { it.questionId == questionId }
+        notifyBookmarksChanged()
+        return Result.success(Unit)
+    }
+
+    override suspend fun toggleBookmark(questionId: String, subtopicId: String, timestamp: Long): Result<Boolean> {
+        if (shouldThrowOnBookmark) return Result.failure(RuntimeException("Simulated toggle bookmark failure"))
+        val existingIndex = bookmarkedQuestions.indexOfFirst { it.questionId == questionId }
+        val isNowBookmarked = if (existingIndex >= 0) {
+            bookmarkedQuestions.removeAt(existingIndex)
+            false
+        } else {
+            bookmarkedQuestions.add(
+                com.example.domain.model.bookmark.BookmarkedQuestion(
+                    questionId = questionId,
+                    subtopicId = subtopicId,
+                    bookmarkedAt = timestamp
+                )
+            )
+            true
+        }
+        notifyBookmarksChanged()
+        return Result.success(isNowBookmarked)
+    }
+
+    override fun observeBookmarkCount(): Flow<Int> =
+        bookmarkUpdateSignal.map {
+            if (shouldThrowOnBookmark) throw RuntimeException("Simulated bookmark failure")
+            bookmarkedQuestions.size
+        }
+
+    override suspend fun getBookmarkCount(): Int {
+        if (shouldThrowOnBookmark) throw RuntimeException("Simulated bookmark failure")
+        return bookmarkedQuestions.size
     }
 }

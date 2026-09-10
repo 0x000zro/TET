@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Quiz
@@ -47,6 +48,7 @@ import com.example.domain.model.QuestionDifficulty
 import com.example.ui.feature.question.model.QuestionOptionPresentationModel
 import com.example.ui.feature.question.model.QuestionPresentationModel
 import com.example.ui.theme.LocalDimensions
+import com.example.ui.theme.SuccessGreen
 
 /**
  * Question list item card displaying question number, text snippet, difficulty, and option count.
@@ -140,14 +142,28 @@ fun QuestionItemCard(
 
 /**
  * Question option card displaying option label and text.
- * Strictly neutral styling: does NOT highlight or reveal whether this option is correct.
+ * Strictly neutral styling by default: does NOT highlight or reveal whether this option is correct.
+ * When [isCorrectAnswer] is explicitly true (only during intentional mistake review), highlights the option.
  */
 @Composable
 fun QuestionOptionCard(
     option: QuestionOptionPresentationModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isCorrectAnswer: Boolean = false
 ) {
     val dimensions = LocalDimensions.current
+
+    val containerColor = if (isCorrectAnswer) {
+        SuccessGreen.copy(alpha = 0.12f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    }
+
+    val borderColor = if (isCorrectAnswer) {
+        SuccessGreen
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
 
     Surface(
         modifier = modifier
@@ -156,8 +172,8 @@ fun QuestionOptionCard(
             .clip(RoundedCornerShape(dimensions.cornerMedium))
             .testTag("question_option_${option.id}"),
         shape = RoundedCornerShape(dimensions.cornerMedium),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        color = containerColor,
+        border = BorderStroke(if (isCorrectAnswer) 1.5.dp else 1.dp, borderColor)
     ) {
         Row(
             modifier = Modifier
@@ -169,14 +185,14 @@ fun QuestionOptionCard(
             Surface(
                 modifier = Modifier.size(32.dp),
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                color = if (isCorrectAnswer) SuccessGreen.copy(alpha = 0.2f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = option.label,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = if (isCorrectAnswer) SuccessGreen else MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -187,9 +203,37 @@ fun QuestionOptionCard(
             Text(
                 text = option.optionText,
                 style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (isCorrectAnswer) FontWeight.SemiBold else FontWeight.Normal,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
+
+            if (isCorrectAnswer) {
+                Spacer(modifier = Modifier.width(dimensions.spacingSmall))
+                Surface(
+                    shape = RoundedCornerShape(dimensions.cornerPill),
+                    color = SuccessGreen.copy(alpha = 0.2f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = stringResource(R.string.wrong_questions_correct_solution),
+                            modifier = Modifier.size(16.dp),
+                            tint = SuccessGreen
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.wrong_questions_correct_solution),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = SuccessGreen
+                        )
+                    }
+                }
+            }
         }
     }
 }

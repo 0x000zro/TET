@@ -142,4 +142,53 @@
     <string name="performance_accuracy_format">%.1f%%</string>
     <string name="performance_load_error">Failed to load performance metrics.</string>
     <string name="performance_retry">Retry</string>
+
+    <!-- Wrong Questions / Mistake Review Strings (Step 13) -->
+    <string name="nav_wrong_questions">Wrong Questions</string>
+    <string name="wrong_questions_title">Mistake Review</string>
+    <string name="wrong_questions_subtitle">Review questions answered incorrectly during practice sessions.</string>
+    <string name="wrong_questions_empty_title">No Mistake Records</string>
+    <string name="wrong_questions_empty_desc">Questions answered incorrectly in completed practice sessions will appear here for targeted review.</string>
+    <string name="wrong_questions_wrong_count_badge">Wrong %1$d times</string>
+    <string name="wrong_questions_wrong_count_singular">Wrong 1 time</string>
+    <string name="wrong_questions_last_wrong_time">Last mistake: %1$s</string>
+    <string name="wrong_questions_remove_action">Remove from Mistakes</string>
+    <string name="wrong_questions_remove_confirmation">Remove this question from your mistake review list?</string>
+    <string name="wrong_questions_removed_message">Question removed from mistake list.</string>
+    <string name="wrong_questions_review_title">Question Review</string>
+    <string name="wrong_questions_correct_solution">Correct Answer</string>
+    <string name="wrong_questions_all_subtopics">All Subtopics</string>
+    <string name="wrong_questions_total_count">%1$d Questions to Review</string>
+    <string name="wrong_questions_back_to_list">Back to mistake list</string>
+    <string name="wrong_questions_review_action">Review</string>
+    <string name="wrong_questions_error_title">Unable to Load Mistakes</string>
+    <string name="wrong_questions_retry">Retry</string>
+
+    <!-- Bookmark / Important Questions Foundation Strings (Step 14) -->
+    <string name="nav_bookmarks">Bookmarks</string>
+    <string name="bookmarks_title">Bookmarked Questions</string>
+    <string name="bookmarks_subtitle">Review questions you have saved for focused revision.</string>
+    <string name="bookmarks_empty_title">No Bookmarks Yet</string>
+    <string name="bookmarks_empty_desc">Tap the bookmark icon on any question to save it here for quick revision.</string>
+    <string name="bookmarks_all_subtopics">All Subtopics</string>
+    <string name="bookmarks_review_action">Review</string>
+    <string name="bookmarks_remove_action">Remove Bookmark</string>
+    <string name="bookmarks_remove_confirmation">Remove this question from your saved bookmarks?</string>
+    <string name="bookmarks_saved_at">Saved on %1$s</string>
+    <string name="bookmarks_review_header_title">Saved for Revision</string>
+    <string name="bookmarks_review_header_desc">Saved from %1$s on %2$s.</string>
+    <string name="bookmarks_back_to_list">Back to bookmarks</string>
+    <string name="bookmark_add_action">Bookmark question</string>
+    <string name="bookmark_remove_action">Remove bookmark</string>
+    <string name="bookmarks_error_title">Unable to Load Bookmarks</string>
+    <string name="bookmarks_retry">Retry</string>
+    <string name="bookmarks_total_count">%1$d Questions Saved</string>
+    <string name="bookmark_review_title">Saved for Revision</string>
+    <string name="bookmark_revision_title">Revision Details</string>
+    <string name="bookmarks_filter_all">All Subtopics</string>
+    <string name="bookmark_saved_on">Saved on %1$s</string>
+    <string name="bookmark_review_action">Review</string>
+    <string name="bookmarks_empty_description">Tap the bookmark icon on any question to save it here for quick revision.</string>
+    <string name="navigate_back">Navigate back</string>
+    <string name="retry_button">Retry</string>
 </resources>

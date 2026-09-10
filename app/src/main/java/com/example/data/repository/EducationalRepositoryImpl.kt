@@ -22,7 +22,9 @@ import com.example.domain.model.SyllabusNode
 import com.example.domain.model.SyllabusNodeType
 import com.example.domain.model.SyllabusTreeNode
 import com.example.domain.model.Topic
+import com.example.domain.model.bookmark.BookmarkedQuestion
 import com.example.domain.model.practice.PracticeAttempt
+import com.example.domain.model.wrongquestion.WrongQuestion
 import com.example.domain.repository.EducationalRepository
 import com.example.domain.validation.QuestionValidator
 import kotlinx.coroutines.CoroutineDispatcher
@@ -603,5 +605,96 @@ class EducationalRepositoryImpl(
 
     override suspend fun deleteAttemptById(id: String): Result<Unit> = withContext(ioDispatcher) {
         runCatching { localDataSource.deleteAttemptById(id) }
+    }
+
+    // --- Wrong Question Operations (Step 13) ---
+
+    override fun observeAllWrongQuestions(): Flow<List<WrongQuestion>> {
+        return localDataSource.observeAllWrongQuestions()
+            .catch { emit(emptyList()) }
+    }
+
+    override fun observeWrongQuestionsBySubtopicId(subtopicId: String): Flow<List<WrongQuestion>> {
+        return localDataSource.observeWrongQuestionsBySubtopicId(subtopicId)
+            .catch { emit(emptyList()) }
+    }
+
+    override suspend fun getWrongQuestionsBySubtopicId(subtopicId: String): List<WrongQuestion> = withContext(ioDispatcher) {
+        runCatching { localDataSource.getWrongQuestionsBySubtopicId(subtopicId) }.getOrDefault(emptyList())
+    }
+
+    override suspend fun getWrongQuestionByQuestionId(questionId: String): WrongQuestion? = withContext(ioDispatcher) {
+        runCatching { localDataSource.getWrongQuestionByQuestionId(questionId) }.getOrNull()
+    }
+
+    override suspend fun recordMistake(
+        questionId: String,
+        subtopicId: String,
+        attemptId: String?,
+        timestamp: Long
+    ): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.recordMistake(questionId, subtopicId, attemptId, timestamp) }
+    }
+
+    override suspend fun deleteWrongQuestion(questionId: String): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.deleteWrongQuestion(questionId) }
+    }
+
+    // --- Bookmarked Question Operations (Step 14) ---
+
+    override fun observeAllBookmarkedQuestions(): Flow<List<BookmarkedQuestion>> {
+        return localDataSource.observeAllBookmarkedQuestions()
+            .catch { emit(emptyList()) }
+    }
+
+    override fun observeBookmarkedQuestionsBySubtopicId(subtopicId: String): Flow<List<BookmarkedQuestion>> {
+        return localDataSource.observeBookmarkedQuestionsBySubtopicId(subtopicId)
+            .catch { emit(emptyList()) }
+    }
+
+    override suspend fun getBookmarkedQuestionsBySubtopicId(subtopicId: String): List<BookmarkedQuestion> = withContext(ioDispatcher) {
+        runCatching { localDataSource.getBookmarkedQuestionsBySubtopicId(subtopicId) }.getOrDefault(emptyList())
+    }
+
+    override suspend fun getBookmarkedQuestionByQuestionId(questionId: String): BookmarkedQuestion? = withContext(ioDispatcher) {
+        runCatching { localDataSource.getBookmarkedQuestionByQuestionId(questionId) }.getOrNull()
+    }
+
+    override fun observeIsBookmarked(questionId: String): Flow<Boolean> {
+        return localDataSource.observeIsBookmarked(questionId)
+            .catch { emit(false) }
+    }
+
+    override suspend fun isBookmarked(questionId: String): Boolean = withContext(ioDispatcher) {
+        runCatching { localDataSource.isBookmarked(questionId) }.getOrDefault(false)
+    }
+
+    override suspend fun saveBookmark(
+        questionId: String,
+        subtopicId: String,
+        timestamp: Long
+    ): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.saveBookmark(questionId, subtopicId, timestamp) }
+    }
+
+    override suspend fun deleteBookmark(questionId: String): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.deleteBookmark(questionId) }
+    }
+
+    override suspend fun toggleBookmark(
+        questionId: String,
+        subtopicId: String,
+        timestamp: Long
+    ): Result<Boolean> = withContext(ioDispatcher) {
+        runCatching { localDataSource.toggleBookmark(questionId, subtopicId, timestamp) }
+    }
+
+    override fun observeBookmarkCount(): Flow<Int> {
+        return localDataSource.observeBookmarkCount()
+            .catch { emit(0) }
+    }
+
+    override suspend fun getBookmarkCount(): Int = withContext(ioDispatcher) {
+        runCatching { localDataSource.getBookmarkCount() }.getOrDefault(0)
     }
 }

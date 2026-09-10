@@ -20,12 +20,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Quiz
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -168,8 +171,9 @@ fun QuestionListView(
 
 /**
  * Question Detail presentation view.
- * Displays question text, all options (strictly neutral without answer reveal),
+ * Displays question text, all options (strictly neutral without answer reveal by default),
  * and explanation when available.
+ * In intentional review mode, highlights the correct option and supports mistake review actions.
  */
 @Composable
 fun QuestionDetailView(
@@ -177,7 +181,10 @@ fun QuestionDetailView(
     questionIndex: Int,
     viewModel: QuestionViewModel,
     modifier: Modifier = Modifier,
-    onPracticeClick: (() -> Unit)? = null
+    onPracticeClick: (() -> Unit)? = null,
+    reviewCorrectOptionId: String? = null,
+    reviewHeaderContent: (@Composable () -> Unit)? = null,
+    reviewBottomContent: (@Composable () -> Unit)? = null
 ) {
     val uiState by viewModel.detailState.collectAsState()
     val dimensions = LocalDimensions.current
@@ -212,7 +219,7 @@ fun QuestionDetailView(
                     .padding(dimensions.spacingMedium)
                     .testTag("question_detail_content")
             ) {
-                // Header: Question index badge & Difficulty badge
+                // Header: Question index badge & Difficulty badge & Bookmark toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -231,7 +238,29 @@ fun QuestionDetailView(
                         )
                     }
 
-                    DifficultyChip(difficulty = question.difficulty)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(dimensions.spacingSmall)
+                    ) {
+                        DifficultyChip(difficulty = question.difficulty)
+
+                        val isBookmarked by viewModel.isBookmarked.collectAsState()
+                        IconButton(
+                            onClick = { viewModel.toggleBookmark(question.id, question.subtopicId) },
+                            modifier = Modifier.testTag(if (isBookmarked) "bookmark_button_active" else "bookmark_button_inactive")
+                        ) {
+                            Icon(
+                                imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                contentDescription = if (isBookmarked) stringResource(R.string.bookmark_remove_action) else stringResource(R.string.bookmark_add_action),
+                                tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                if (reviewHeaderContent != null) {
+                    Spacer(modifier = Modifier.height(dimensions.spacingMedium))
+                    reviewHeaderContent()
                 }
 
                 Spacer(modifier = Modifier.height(dimensions.spacingMedium))
@@ -269,13 +298,16 @@ fun QuestionDetailView(
 
                 Spacer(modifier = Modifier.height(dimensions.spacingSmall))
 
-                // Deterministically ordered options (Neutral presentation without answer leak)
+                // Deterministically ordered options (Neutral presentation without answer leak by default; highlights correct answer in review mode)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(dimensions.spacingSmall)
                 ) {
                     question.options.forEach { option ->
-                        QuestionOptionCard(option = option)
+                        QuestionOptionCard(
+                            option = option,
+                            isCorrectAnswer = reviewCorrectOptionId != null && option.id == reviewCorrectOptionId
+                        )
                     }
                 }
 
@@ -348,6 +380,12 @@ fun QuestionDetailView(
                             fontWeight = FontWeight.Bold
                         )
                     }
+                }
+
+                // Intentional Review Bottom Actions (e.g. Remove Mistake)
+                if (reviewBottomContent != null) {
+                    Spacer(modifier = Modifier.height(dimensions.spacingLarge))
+                    reviewBottomContent()
                 }
 
                 Spacer(modifier = Modifier.height(dimensions.spacingExtraLarge))

@@ -43,8 +43,12 @@ class PracticeSessionViewModel(
     private val _subtopicAttempts = MutableStateFlow<List<PracticeAttempt>>(emptyList())
     val subtopicAttempts: StateFlow<List<PracticeAttempt>> = _subtopicAttempts.asStateFlow()
 
+    private val _isBookmarked = MutableStateFlow(false)
+    val isBookmarked: StateFlow<Boolean> = _isBookmarked.asStateFlow()
+
     private var activeJob: Job? = null
     private var attemptsJob: Job? = null
+    private var bookmarkJob: Job? = null
     private var isSubmitting: Boolean = false
     private var isFinishing: Boolean = false
     private var isAttemptSaved: Boolean = false
@@ -102,6 +106,7 @@ class PracticeSessionViewModel(
                         )
                         val firstQuestion = sortedQuestions.first()
                         val presentation = firstQuestion.toPresentationModel(questionNumber = 1)
+                        observeActiveQuestionBookmark(firstQuestion.id)
 
                         _sessionState.value = PracticeSessionUiState.ActiveQuestion(
                             session = session,
@@ -210,6 +215,7 @@ class PracticeSessionViewModel(
         val updatedSession = current.session.nextQuestion()
         val nextQuestion = updatedSession.currentQuestion ?: return
         val presentation = nextQuestion.toPresentationModel(questionNumber = updatedSession.displayQuestionNumber)
+        observeActiveQuestionBookmark(nextQuestion.id)
 
         _sessionState.value = PracticeSessionUiState.ActiveQuestion(
             session = updatedSession,
@@ -274,6 +280,21 @@ class PracticeSessionViewModel(
             } finally {
                 isFinishing = false
             }
+
+            // Record mistakes from completed practice session (Step 13)
+            val incorrectQuestionIds = completedSession.incorrectQuestionIds
+            for (questionId in incorrectQuestionIds) {
+                try {
+                    repository.recordMistake(
+                        questionId = questionId,
+                        subtopicId = completedSession.subtopicId,
+                        attemptId = attempt.id,
+                        timestamp = attempt.completedAt
+                    )
+                } catch (_: Exception) {
+                    // Mistake recording failure must not corrupt or break the practice completion
+                }
+            }
         }
     }
 
@@ -290,6 +311,26 @@ class PracticeSessionViewModel(
         isFinishing = false
         isSubmitting = false
         _sessionState.value = PracticeSessionUiState.Loading
+    }
+
+    /**
+     * Toggles the bookmark status for a question.
+     */
+    fun toggleBookmark(questionId: String, subtopicId: String) {
+        viewModelScope.launch {
+            repository.toggleBookmark(questionId, subtopicId)
+        }
+    }
+
+    private fun observeActiveQuestionBookmark(questionId: String) {
+        bookmarkJob?.cancel()
+        bookmarkJob = viewModelScope.launch {
+            repository.observeIsBookmarked(questionId)
+                .catch { emit(false) }
+                .collect { bookmarked ->
+                    _isBookmarked.value = bookmarked
+                }
+        }
     }
 
     /**

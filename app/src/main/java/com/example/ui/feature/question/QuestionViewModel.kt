@@ -37,6 +37,9 @@ class QuestionViewModel(
     private val _subtopicAttempts = MutableStateFlow<List<PracticeAttempt>>(emptyList())
     val subtopicAttempts: StateFlow<List<PracticeAttempt>> = _subtopicAttempts.asStateFlow()
 
+    private val _isBookmarked = MutableStateFlow(false)
+    val isBookmarked: StateFlow<Boolean> = _isBookmarked.asStateFlow()
+
     private var currentSubtopicId: String? = null
     private var currentQuestionId: String? = null
     private var currentQuestionIndex: Int = 1
@@ -44,6 +47,7 @@ class QuestionViewModel(
     private var listJob: Job? = null
     private var detailJob: Job? = null
     private var attemptsJob: Job? = null
+    private var bookmarkJob: Job? = null
 
     /**
      * Observes questions and practice attempts for the specified subtopic.
@@ -96,7 +100,16 @@ class QuestionViewModel(
         currentQuestionId = questionId
         currentQuestionIndex = questionIndex
         detailJob?.cancel()
+        bookmarkJob?.cancel()
         _detailState.value = QuestionDetailUiState.Loading
+
+        bookmarkJob = viewModelScope.launch {
+            repository.observeIsBookmarked(questionId)
+                .catch { emit(false) }
+                .collect { bookmarked ->
+                    _isBookmarked.value = bookmarked
+                }
+        }
 
         detailJob = viewModelScope.launch {
             repository.observeQuestion(questionId)
@@ -114,6 +127,15 @@ class QuestionViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    /**
+     * Toggles the bookmark status for a question.
+     */
+    fun toggleBookmark(questionId: String, subtopicId: String) {
+        viewModelScope.launch {
+            repository.toggleBookmark(questionId, subtopicId)
         }
     }
 

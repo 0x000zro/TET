@@ -5,29 +5,35 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.data.local.db.dao.AppStateDao
+import com.example.data.local.db.dao.BookmarkedQuestionDao
 import com.example.data.local.db.dao.ContentSyncStateDao
 import com.example.data.local.db.dao.ExamDao
 import com.example.data.local.db.dao.LocalPreferenceDao
 import com.example.data.local.db.dao.PaperDao
 import com.example.data.local.db.dao.PracticeAttemptDao
+import com.example.data.local.db.dao.PreviousYearQuestionDao
 import com.example.data.local.db.dao.QuestionDao
 import com.example.data.local.db.dao.QuestionOptionDao
 import com.example.data.local.db.dao.SubjectDao
 import com.example.data.local.db.dao.SubtopicDao
 import com.example.data.local.db.dao.SyllabusMetadataDao
 import com.example.data.local.db.dao.TopicDao
+import com.example.data.local.db.dao.WrongQuestionDao
 import com.example.data.local.db.entity.AppStateEntity
+import com.example.data.local.db.entity.BookmarkedQuestionEntity
 import com.example.data.local.db.entity.ContentSyncStateEntity
 import com.example.data.local.db.entity.ExamEntity
 import com.example.data.local.db.entity.LocalPreferenceEntity
 import com.example.data.local.db.entity.PaperEntity
 import com.example.data.local.db.entity.PracticeAttemptEntity
+import com.example.data.local.db.entity.PreviousYearQuestionEntity
 import com.example.data.local.db.entity.QuestionEntity
 import com.example.data.local.db.entity.QuestionOptionEntity
 import com.example.data.local.db.entity.SubjectEntity
 import com.example.data.local.db.entity.SubtopicEntity
 import com.example.data.local.db.entity.SyllabusMetadataEntity
 import com.example.data.local.db.entity.TopicEntity
+import com.example.data.local.db.entity.WrongQuestionEntity
 
 /**
  * The central Room database for the application.
@@ -56,7 +62,13 @@ import com.example.data.local.db.entity.TopicEntity
         QuestionEntity::class,
         QuestionOptionEntity::class,
         // Practice Attempts Entity (v5)
-        PracticeAttemptEntity::class
+        PracticeAttemptEntity::class,
+        // Wrong Questions / Mistake Tracker Entity (v6)
+        WrongQuestionEntity::class,
+        // Bookmarked Questions Entity (v7)
+        BookmarkedQuestionEntity::class,
+        // Previous Year Questions (PYQ) Entity (v8)
+        PreviousYearQuestionEntity::class
     ],
     version = DatabaseContract.DATABASE_VERSION,
     exportSchema = false
@@ -84,6 +96,15 @@ abstract class AppDatabase : RoomDatabase() {
 
     // Practice Attempts DAO (Step 11)
     abstract fun practiceAttemptDao(): PracticeAttemptDao
+
+    // Wrong Questions DAO (Step 13)
+    abstract fun wrongQuestionDao(): WrongQuestionDao
+
+    // Bookmarked Questions DAO (Step 14)
+    abstract fun bookmarkedQuestionDao(): BookmarkedQuestionDao
+
+    // Previous Year Questions DAO (Step 15)
+    abstract fun previousYearQuestionDao(): PreviousYearQuestionDao
 
     companion object {
         @Volatile

@@ -35,9 +35,13 @@ class PracticeViewModel(
     private val _uiState = MutableStateFlow<PracticeUiState>(PracticeUiState.Loading)
     val uiState: StateFlow<PracticeUiState> = _uiState.asStateFlow()
 
+    private val _isBookmarked = MutableStateFlow(false)
+    val isBookmarked: StateFlow<Boolean> = _isBookmarked.asStateFlow()
+
     private var currentQuestionId: String? = null
     private var currentQuestionIndex: Int = 1
     private var loadJob: Job? = null
+    private var bookmarkJob: Job? = null
     private var isSubmitting: Boolean = false
 
     /**
@@ -51,7 +55,16 @@ class PracticeViewModel(
         currentQuestionId = questionId
         currentQuestionIndex = questionIndex
         loadJob?.cancel()
+        bookmarkJob?.cancel()
         _uiState.value = PracticeUiState.Loading
+
+        bookmarkJob = viewModelScope.launch {
+            repository.observeIsBookmarked(questionId)
+                .catch { emit(false) }
+                .collect { bookmarked ->
+                    _isBookmarked.value = bookmarked
+                }
+        }
 
         loadJob = viewModelScope.launch {
             repository.observeQuestion(questionId)
@@ -133,6 +146,15 @@ class PracticeViewModel(
             } finally {
                 isSubmitting = false
             }
+        }
+    }
+
+    /**
+     * Toggles the bookmark status for the practice question.
+     */
+    fun toggleBookmark(questionId: String, subtopicId: String) {
+        viewModelScope.launch {
+            repository.toggleBookmark(questionId, subtopicId)
         }
     }
 

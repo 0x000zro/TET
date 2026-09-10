@@ -394,4 +394,42 @@ class PracticeSessionViewModelTest {
         val completed = state as PracticeSessionUiState.Completed
         assertEquals(1, completed.result.correctAnswers)
     }
+
+    @Test
+    fun startSession_andNextQuestion_observesAndTogglesBookmarksCorrectly() = runTest {
+        fakeRepository.questionsMap["q_1"] = sampleQuestion1
+        fakeRepository.questionsMap["q_2"] = sampleQuestion2
+
+        viewModel.startSession("sub_math")
+        advanceUntilIdle()
+
+        // Initially q_1 is not bookmarked
+        assertFalse(viewModel.isBookmarked.value)
+
+        // Toggle bookmark for q_1
+        viewModel.toggleBookmark("q_1", "sub_math")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.isBookmarked.value)
+        assertEquals(1, fakeRepository.bookmarkedQuestions.size)
+        assertEquals("q_1", fakeRepository.bookmarkedQuestions.first().questionId)
+
+        // Submit and move to next question (q_2)
+        viewModel.selectOption("opt_1_b")
+        viewModel.submitAnswer()
+        advanceUntilIdle()
+
+        viewModel.nextQuestion()
+        advanceUntilIdle()
+
+        // q_2 is not bookmarked
+        assertFalse(viewModel.isBookmarked.value)
+
+        // Toggle bookmark for q_2
+        viewModel.toggleBookmark("q_2", "sub_math")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.isBookmarked.value)
+        assertEquals(2, fakeRepository.bookmarkedQuestions.size)
+    }
 }

@@ -27,7 +27,8 @@ data class PracticeSession(
     val currentAnswerResult: PracticeAnswerResult? = null,
     val answeredCount: Int = 0,
     val correctCount: Int = 0,
-    val isCompleted: Boolean = false
+    val isCompleted: Boolean = false,
+    val evaluatedAnswers: Map<String, PracticeAnswerResult> = emptyMap()
 ) {
     /**
      * Total count of questions in the practice session.
@@ -74,6 +75,14 @@ data class PracticeSession(
         )
 
     /**
+     * List of question IDs that were answered incorrectly in this session.
+     */
+     val incorrectQuestionIds: List<String>
+         get() = evaluatedAnswers.values
+             .filter { it.status == PracticeEvaluationStatus.INCORRECT }
+             .map { it.questionId }
+
+    /**
      * Returns a new session with an option selected for the current question.
      * Ignored if the current question is already submitted or the session is completed.
      */
@@ -93,7 +102,8 @@ data class PracticeSession(
             isSubmitted = true,
             currentAnswerResult = result,
             answeredCount = answeredCount + 1,
-            correctCount = if (isCorrect) correctCount + 1 else correctCount
+            correctCount = if (isCorrect) correctCount + 1 else correctCount,
+            evaluatedAnswers = evaluatedAnswers + (result.questionId to result)
         )
     }
 

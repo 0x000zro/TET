@@ -24,6 +24,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MenuBook
@@ -116,6 +118,28 @@ fun MoreTabContent(
                         tag = "Analytics",
                         onClick = { onNavigateToDestination(ShellDestination.Performance) },
                         testTag = "more_performance_card"
+                    )
+                }
+
+                item {
+                    FeatureCard(
+                        title = stringResource(R.string.wrong_questions_title),
+                        description = stringResource(R.string.wrong_questions_subtitle),
+                        icon = Icons.Default.ErrorOutline,
+                        tag = "Mistakes",
+                        onClick = { onNavigateToDestination(ShellDestination.WrongQuestions) },
+                        testTag = "more_wrong_questions_card"
+                    )
+                }
+
+                item {
+                    FeatureCard(
+                        title = stringResource(R.string.bookmarks_title),
+                        description = stringResource(R.string.bookmarks_subtitle),
+                        icon = Icons.Default.Bookmark,
+                        tag = "Saved",
+                        onClick = { onNavigateToDestination(ShellDestination.Bookmarks) },
+                        testTag = "more_bookmarks_card"
                     )
                 }
 

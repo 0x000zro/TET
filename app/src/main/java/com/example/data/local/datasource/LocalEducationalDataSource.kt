@@ -19,7 +19,12 @@ import com.example.domain.model.Subject
 import com.example.domain.model.Subtopic
 import com.example.domain.model.SyllabusMetadata
 import com.example.domain.model.Topic
+import com.example.domain.model.bookmark.BookmarkedQuestion
 import com.example.domain.model.practice.PracticeAttempt
+import com.example.domain.model.pyq.PreviousYearQuestion
+import com.example.domain.model.wrongquestion.WrongQuestion
+import com.example.data.local.db.entity.toDomain
+import com.example.data.local.db.entity.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -126,6 +131,47 @@ interface LocalEducationalDataSource {
     suspend fun getAttemptById(id: String): PracticeAttempt?
     suspend fun savePracticeAttempt(attempt: PracticeAttempt)
     suspend fun deleteAttemptById(id: String)
+
+    // Wrong Question operations (Step 13)
+    fun observeAllWrongQuestions(): Flow<List<WrongQuestion>>
+    fun observeWrongQuestionsBySubtopicId(subtopicId: String): Flow<List<WrongQuestion>>
+    suspend fun getWrongQuestionsBySubtopicId(subtopicId: String): List<WrongQuestion>
+    suspend fun getWrongQuestionByQuestionId(questionId: String): WrongQuestion?
+    suspend fun recordMistake(questionId: String, subtopicId: String, attemptId: String?, timestamp: Long)
+    suspend fun deleteWrongQuestion(questionId: String)
+
+    // Bookmarked Question operations (Step 14)
+    fun observeAllBookmarkedQuestions(): Flow<List<BookmarkedQuestion>>
+    fun observeBookmarkedQuestionsBySubtopicId(subtopicId: String): Flow<List<BookmarkedQuestion>>
+    suspend fun getBookmarkedQuestionsBySubtopicId(subtopicId: String): List<BookmarkedQuestion>
+    suspend fun getBookmarkedQuestionByQuestionId(questionId: String): BookmarkedQuestion?
+    fun observeIsBookmarked(questionId: String): Flow<Boolean>
+    suspend fun isBookmarked(questionId: String): Boolean
+    suspend fun saveBookmark(questionId: String, subtopicId: String, timestamp: Long)
+    suspend fun deleteBookmark(questionId: String)
+    suspend fun toggleBookmark(questionId: String, subtopicId: String, timestamp: Long): Boolean
+    fun observeBookmarkCount(): Flow<Int>
+    suspend fun getBookmarkCount(): Int
+
+    // Previous Year Question operations (Step 15)
+    fun observeAllPreviousYearQuestions(): Flow<List<PreviousYearQuestion>>
+    fun observePreviousYearQuestionsByExamId(examId: String): Flow<List<PreviousYearQuestion>>
+    fun observePreviousYearQuestionsByPaperId(paperId: String): Flow<List<PreviousYearQuestion>>
+    fun observePreviousYearQuestionsByPaperIdAndYear(paperId: String, year: Int): Flow<List<PreviousYearQuestion>>
+    fun observePreviousYearQuestionsBySubtopicId(subtopicId: String): Flow<List<PreviousYearQuestion>>
+    fun observePreviousYearQuestionByQuestionId(questionId: String): Flow<PreviousYearQuestion?>
+    suspend fun getPreviousYearQuestionByQuestionId(questionId: String): PreviousYearQuestion?
+    suspend fun getPreviousYearQuestionById(id: String): PreviousYearQuestion?
+    fun observeDistinctYearsForPaper(paperId: String): Flow<List<Int>>
+    suspend fun getDistinctYearsForPaper(paperId: String): List<Int>
+    fun observeAllDistinctYears(): Flow<List<Int>>
+    suspend fun findExistingPyq(questionId: String, year: Int, session: String?): PreviousYearQuestion?
+    suspend fun savePreviousYearQuestion(pyq: PreviousYearQuestion)
+    suspend fun savePreviousYearQuestions(pyqs: List<PreviousYearQuestion>)
+    suspend fun deletePreviousYearQuestionById(id: String)
+    suspend fun deletePreviousYearQuestionByQuestionId(questionId: String)
+    fun observePreviousYearQuestionCount(): Flow<Int>
+    suspend fun getPreviousYearQuestionCount(): Int
 }
 
 class DefaultLocalEducationalDataSource(
@@ -610,5 +656,193 @@ class DefaultLocalEducationalDataSource(
 
     override suspend fun deleteAttemptById(id: String) {
         database?.practiceAttemptDao()?.deleteAttemptById(id)
+    }
+
+    // --- Wrong Question operations (Step 13) ---
+
+    override fun observeAllWrongQuestions(): Flow<List<WrongQuestion>> {
+        val dao = database?.wrongQuestionDao() ?: return flowOf(emptyList())
+        return dao.getAllWrongQuestionsFlow().map { list ->
+            list.map { it.toDomain() }
+        }
+    }
+
+    override fun observeWrongQuestionsBySubtopicId(subtopicId: String): Flow<List<WrongQuestion>> {
+        val dao = database?.wrongQuestionDao() ?: return flowOf(emptyList())
+        return dao.getWrongQuestionsBySubtopicIdFlow(subtopicId).map { list ->
+            list.map { it.toDomain() }
+        }
+    }
+
+    override suspend fun getWrongQuestionsBySubtopicId(subtopicId: String): List<WrongQuestion> {
+        val dao = database?.wrongQuestionDao() ?: return emptyList()
+        return dao.getWrongQuestionsBySubtopicId(subtopicId).map { it.toDomain() }
+    }
+
+    override suspend fun getWrongQuestionByQuestionId(questionId: String): WrongQuestion? {
+        return database?.wrongQuestionDao()?.getWrongQuestionById(questionId)?.toDomain()
+    }
+
+    override suspend fun recordMistake(
+        questionId: String,
+        subtopicId: String,
+        attemptId: String?,
+        timestamp: Long
+    ) {
+        database?.wrongQuestionDao()?.recordOrUpdateMistake(
+            questionId = questionId,
+            subtopicId = subtopicId,
+            attemptId = attemptId,
+            timestamp = timestamp
+        )
+    }
+
+    override suspend fun deleteWrongQuestion(questionId: String) {
+        database?.wrongQuestionDao()?.deleteByQuestionId(questionId)
+    }
+
+    // --- Bookmarked Question operations (Step 14) ---
+
+    override fun observeAllBookmarkedQuestions(): Flow<List<BookmarkedQuestion>> {
+        val dao = database?.bookmarkedQuestionDao() ?: return flowOf(emptyList())
+        return dao.getAllBookmarkedQuestionsFlow().map { list ->
+            list.map { it.toDomain() }
+        }
+    }
+
+    override fun observeBookmarkedQuestionsBySubtopicId(subtopicId: String): Flow<List<BookmarkedQuestion>> {
+        val dao = database?.bookmarkedQuestionDao() ?: return flowOf(emptyList())
+        return dao.getBookmarkedQuestionsBySubtopicIdFlow(subtopicId).map { list ->
+            list.map { it.toDomain() }
+        }
+    }
+
+    override suspend fun getBookmarkedQuestionsBySubtopicId(subtopicId: String): List<BookmarkedQuestion> {
+        val dao = database?.bookmarkedQuestionDao() ?: return emptyList()
+        return dao.getBookmarkedQuestionsBySubtopicId(subtopicId).map { it.toDomain() }
+    }
+
+    override suspend fun getBookmarkedQuestionByQuestionId(questionId: String): BookmarkedQuestion? {
+        return database?.bookmarkedQuestionDao()?.getBookmarkedQuestionById(questionId)?.toDomain()
+    }
+
+    override fun observeIsBookmarked(questionId: String): Flow<Boolean> {
+        val dao = database?.bookmarkedQuestionDao() ?: return flowOf(false)
+        return dao.isQuestionBookmarkedFlow(questionId)
+    }
+
+    override suspend fun isBookmarked(questionId: String): Boolean {
+        return database?.bookmarkedQuestionDao()?.isQuestionBookmarked(questionId) ?: false
+    }
+
+    override suspend fun saveBookmark(questionId: String, subtopicId: String, timestamp: Long) {
+        database?.bookmarkedQuestionDao()?.insertOrUpdate(
+            BookmarkedQuestion(
+                questionId = questionId,
+                subtopicId = subtopicId,
+                bookmarkedAt = timestamp
+            ).toEntity(timestamp)
+        )
+    }
+
+    override suspend fun deleteBookmark(questionId: String) {
+        database?.bookmarkedQuestionDao()?.deleteByQuestionId(questionId)
+    }
+
+    override suspend fun toggleBookmark(questionId: String, subtopicId: String, timestamp: Long): Boolean {
+        val dao = database?.bookmarkedQuestionDao() ?: return false
+        return dao.toggleBookmark(questionId, subtopicId, timestamp)
+    }
+
+    override fun observeBookmarkCount(): Flow<Int> {
+        val dao = database?.bookmarkedQuestionDao() ?: return flowOf(0)
+        return dao.getCountFlow()
+    }
+
+    override suspend fun getBookmarkCount(): Int {
+        return database?.bookmarkedQuestionDao()?.getCount() ?: 0
+    }
+
+    // --- Previous Year Question (PYQ) operations (Step 15) ---
+
+    override fun observeAllPreviousYearQuestions(): Flow<List<PreviousYearQuestion>> {
+        val dao = database?.previousYearQuestionDao() ?: return flowOf(emptyList())
+        return dao.getAllFlow().map { list -> list.map { it.toDomain() } }
+    }
+
+    override fun observePreviousYearQuestionsByExamId(examId: String): Flow<List<PreviousYearQuestion>> {
+        val dao = database?.previousYearQuestionDao() ?: return flowOf(emptyList())
+        return dao.getByExamIdFlow(examId).map { list -> list.map { it.toDomain() } }
+    }
+
+    override fun observePreviousYearQuestionsByPaperId(paperId: String): Flow<List<PreviousYearQuestion>> {
+        val dao = database?.previousYearQuestionDao() ?: return flowOf(emptyList())
+        return dao.getByPaperIdFlow(paperId).map { list -> list.map { it.toDomain() } }
+    }
+
+    override fun observePreviousYearQuestionsByPaperIdAndYear(paperId: String, year: Int): Flow<List<PreviousYearQuestion>> {
+        val dao = database?.previousYearQuestionDao() ?: return flowOf(emptyList())
+        return dao.getByPaperIdAndYearFlow(paperId, year).map { list -> list.map { it.toDomain() } }
+    }
+
+    override fun observePreviousYearQuestionsBySubtopicId(subtopicId: String): Flow<List<PreviousYearQuestion>> {
+        val dao = database?.previousYearQuestionDao() ?: return flowOf(emptyList())
+        return dao.getBySubtopicIdFlow(subtopicId).map { list -> list.map { it.toDomain() } }
+    }
+
+    override fun observePreviousYearQuestionByQuestionId(questionId: String): Flow<PreviousYearQuestion?> {
+        val dao = database?.previousYearQuestionDao() ?: return flowOf(null)
+        return dao.getByQuestionIdFlow(questionId).map { it?.toDomain() }
+    }
+
+    override suspend fun getPreviousYearQuestionByQuestionId(questionId: String): PreviousYearQuestion? {
+        return database?.previousYearQuestionDao()?.getByQuestionId(questionId)?.toDomain()
+    }
+
+    override suspend fun getPreviousYearQuestionById(id: String): PreviousYearQuestion? {
+        return database?.previousYearQuestionDao()?.getById(id)?.toDomain()
+    }
+
+    override fun observeDistinctYearsForPaper(paperId: String): Flow<List<Int>> {
+        val dao = database?.previousYearQuestionDao() ?: return flowOf(emptyList())
+        return dao.getDistinctYearsForPaperFlow(paperId)
+    }
+
+    override suspend fun getDistinctYearsForPaper(paperId: String): List<Int> {
+        return database?.previousYearQuestionDao()?.getDistinctYearsForPaper(paperId) ?: emptyList()
+    }
+
+    override fun observeAllDistinctYears(): Flow<List<Int>> {
+        val dao = database?.previousYearQuestionDao() ?: return flowOf(emptyList())
+        return dao.getAllDistinctYearsFlow()
+    }
+
+    override suspend fun findExistingPyq(questionId: String, year: Int, session: String?): PreviousYearQuestion? {
+        return database?.previousYearQuestionDao()?.findExisting(questionId, year, session)?.toDomain()
+    }
+
+    override suspend fun savePreviousYearQuestion(pyq: PreviousYearQuestion) {
+        database?.previousYearQuestionDao()?.insertOrUpdate(pyq.toEntity())
+    }
+
+    override suspend fun savePreviousYearQuestions(pyqs: List<PreviousYearQuestion>) {
+        database?.previousYearQuestionDao()?.insertOrUpdateAll(pyqs.map { it.toEntity() })
+    }
+
+    override suspend fun deletePreviousYearQuestionById(id: String) {
+        database?.previousYearQuestionDao()?.deleteById(id)
+    }
+
+    override suspend fun deletePreviousYearQuestionByQuestionId(questionId: String) {
+        database?.previousYearQuestionDao()?.deleteByQuestionId(questionId)
+    }
+
+    override fun observePreviousYearQuestionCount(): Flow<Int> {
+        val dao = database?.previousYearQuestionDao() ?: return flowOf(0)
+        return dao.getCountFlow()
+    }
+
+    override suspend fun getPreviousYearQuestionCount(): Int {
+        return database?.previousYearQuestionDao()?.getCount() ?: 0
     }
 }

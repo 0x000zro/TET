@@ -115,6 +115,18 @@ fun MainShellScreen(
                         )
                     }
 
+                    ShellDestination.WrongQuestions -> {
+                        com.example.ui.feature.wrongquestion.WrongQuestionsScreen(
+                            onNavigateBack = { viewModel.navigateBack() }
+                        )
+                    }
+
+                    ShellDestination.Bookmarks -> {
+                        com.example.ui.feature.bookmark.BookmarkedQuestionsScreen(
+                            onNavigateBack = { viewModel.navigateBack() }
+                        )
+                    }
+
                     ShellDestination.Practice,
                     ShellDestination.MockTests,
                     ShellDestination.EBooks,

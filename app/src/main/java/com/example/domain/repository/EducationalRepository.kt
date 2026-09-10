@@ -18,7 +18,9 @@ import com.example.domain.model.SyllabusNode
 import com.example.domain.model.SyllabusNodeType
 import com.example.domain.model.SyllabusTreeNode
 import com.example.domain.model.Topic
+import com.example.domain.model.bookmark.BookmarkedQuestion
 import com.example.domain.model.practice.PracticeAttempt
+import com.example.domain.model.wrongquestion.WrongQuestion
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -172,4 +174,25 @@ interface EducationalRepository {
     suspend fun getAttemptById(id: String): PracticeAttempt?
     suspend fun savePracticeAttempt(attempt: PracticeAttempt): Result<Unit>
     suspend fun deleteAttemptById(id: String): Result<Unit>
+
+    // Wrong Question Operations (Step 13)
+    fun observeAllWrongQuestions(): Flow<List<WrongQuestion>>
+    fun observeWrongQuestionsBySubtopicId(subtopicId: String): Flow<List<WrongQuestion>>
+    suspend fun getWrongQuestionsBySubtopicId(subtopicId: String): List<WrongQuestion>
+    suspend fun getWrongQuestionByQuestionId(questionId: String): WrongQuestion?
+    suspend fun recordMistake(questionId: String, subtopicId: String, attemptId: String?, timestamp: Long): Result<Unit>
+    suspend fun deleteWrongQuestion(questionId: String): Result<Unit>
+
+    // Bookmarked Question Operations (Step 14)
+    fun observeAllBookmarkedQuestions(): Flow<List<BookmarkedQuestion>>
+    fun observeBookmarkedQuestionsBySubtopicId(subtopicId: String): Flow<List<BookmarkedQuestion>>
+    suspend fun getBookmarkedQuestionsBySubtopicId(subtopicId: String): List<BookmarkedQuestion>
+    suspend fun getBookmarkedQuestionByQuestionId(questionId: String): BookmarkedQuestion?
+    fun observeIsBookmarked(questionId: String): Flow<Boolean>
+    suspend fun isBookmarked(questionId: String): Boolean
+    suspend fun saveBookmark(questionId: String, subtopicId: String, timestamp: Long = System.currentTimeMillis()): Result<Unit>
+    suspend fun deleteBookmark(questionId: String): Result<Unit>
+    suspend fun toggleBookmark(questionId: String, subtopicId: String, timestamp: Long = System.currentTimeMillis()): Result<Boolean>
+    fun observeBookmarkCount(): Flow<Int>
+    suspend fun getBookmarkCount(): Int
 }

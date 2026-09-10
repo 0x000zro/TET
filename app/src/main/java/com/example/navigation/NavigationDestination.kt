@@ -5,6 +5,8 @@ import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
@@ -13,6 +15,8 @@ import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Assessment
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MenuBook
@@ -110,6 +114,22 @@ sealed class ShellDestination(
         titleResId = R.string.nav_performance,
         selectedIcon = Icons.Filled.Assessment,
         unselectedIcon = Icons.Outlined.Assessment,
+        isPrimaryBottomNav = false
+    )
+
+    data object WrongQuestions : ShellDestination(
+        route = "shell_wrong_questions",
+        titleResId = R.string.wrong_questions_title,
+        selectedIcon = Icons.Filled.ErrorOutline,
+        unselectedIcon = Icons.Outlined.ErrorOutline,
+        isPrimaryBottomNav = false
+    )
+
+    data object Bookmarks : ShellDestination(
+        route = "shell_bookmarks",
+        titleResId = R.string.bookmarks_title,
+        selectedIcon = Icons.Filled.Bookmark,
+        unselectedIcon = Icons.Outlined.BookmarkBorder,
         isPrimaryBottomNav = false
     )
 

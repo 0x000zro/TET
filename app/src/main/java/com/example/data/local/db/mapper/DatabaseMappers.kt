@@ -1,6 +1,7 @@
 package com.example.data.local.db.mapper
 
 import com.example.data.local.db.entity.AppStateEntity
+import com.example.data.local.db.entity.BookmarkedQuestionEntity
 import com.example.data.local.db.entity.ContentSyncStateEntity
 import com.example.data.local.db.entity.ExamEntity
 import com.example.data.local.db.entity.LocalPreferenceEntity
@@ -12,6 +13,7 @@ import com.example.data.local.db.entity.QuestionWithOptionsEntity
 import com.example.data.local.db.entity.SubjectEntity
 import com.example.data.local.db.entity.SubtopicEntity
 import com.example.data.local.db.entity.TopicEntity
+import com.example.data.local.db.entity.WrongQuestionEntity
 import com.example.domain.model.AppState
 import com.example.domain.model.ContentSyncState
 import com.example.domain.model.Exam
@@ -25,7 +27,9 @@ import com.example.domain.model.Subject
 import com.example.domain.model.Subtopic
 import com.example.domain.model.SyncStatus
 import com.example.domain.model.Topic
+import com.example.domain.model.bookmark.BookmarkedQuestion
 import com.example.domain.model.practice.PracticeAttempt
+import com.example.domain.model.wrongquestion.WrongQuestion
 
 /**
  * Clean Architecture mappers converting between Room database entities
@@ -398,6 +402,48 @@ object DatabaseMappers {
             startedAt = this.startedAt,
             completedAt = this.completedAt,
             updatedAtTimestamp = System.currentTimeMillis()
+        )
+    }
+
+    fun WrongQuestionEntity.toDomain(): WrongQuestion {
+        return WrongQuestion(
+            questionId = this.questionId,
+            subtopicId = this.subtopicId,
+            firstWrongAt = this.firstWrongAt,
+            lastWrongAt = this.lastWrongAt,
+            wrongCount = this.wrongCount,
+            lastAttemptId = this.lastAttemptId
+        )
+    }
+
+    fun WrongQuestion.toEntity(updatedAtTimestamp: Long = System.currentTimeMillis()): WrongQuestionEntity {
+        return WrongQuestionEntity(
+            questionId = this.questionId,
+            subtopicId = this.subtopicId,
+            firstWrongAt = this.firstWrongAt,
+            lastWrongAt = this.lastWrongAt,
+            wrongCount = this.wrongCount,
+            lastAttemptId = this.lastAttemptId,
+            updatedAtTimestamp = updatedAtTimestamp
+        )
+    }
+
+    // --- Bookmarked Questions Mappers (Step 14) ---
+
+    fun BookmarkedQuestionEntity.toDomain(): BookmarkedQuestion {
+        return BookmarkedQuestion(
+            questionId = this.questionId,
+            subtopicId = this.subtopicId,
+            bookmarkedAt = this.bookmarkedAt
+        )
+    }
+
+    fun BookmarkedQuestion.toEntity(updatedAtTimestamp: Long = System.currentTimeMillis()): BookmarkedQuestionEntity {
+        return BookmarkedQuestionEntity(
+            questionId = this.questionId,
+            subtopicId = this.subtopicId,
+            bookmarkedAt = this.bookmarkedAt,
+            updatedAtTimestamp = updatedAtTimestamp
         )
     }
 }

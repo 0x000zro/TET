@@ -246,4 +246,34 @@ class PracticeViewModelTest {
 
         assertTrue(viewModel.uiState.value is PracticeUiState.Ready)
     }
+
+    @Test
+    fun loadQuestion_startsObservingBookmark_initiallyFalse() = runTest {
+        fakeRepository.questionsMap["q_1"] = sampleQuestion
+        viewModel.loadQuestion("q_1")
+        advanceUntilIdle()
+
+        assertFalse(viewModel.isBookmarked.value)
+    }
+
+    @Test
+    fun toggleBookmark_togglesBookmarkState() = runTest {
+        fakeRepository.questionsMap["q_1"] = sampleQuestion
+        viewModel.loadQuestion("q_1")
+        advanceUntilIdle()
+
+        assertFalse(viewModel.isBookmarked.value)
+
+        viewModel.toggleBookmark("q_1", "sub_1")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.isBookmarked.value)
+        assertEquals(1, fakeRepository.bookmarkedQuestions.size)
+
+        viewModel.toggleBookmark("q_1", "sub_1")
+        advanceUntilIdle()
+
+        assertFalse(viewModel.isBookmarked.value)
+        assertEquals(0, fakeRepository.bookmarkedQuestions.size)
+    }
 }
