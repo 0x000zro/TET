@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -286,7 +287,7 @@ class EducationalRepositoryImpl(
         return when {
             // Root request (Exams)
             parentId == null || parentType == null -> {
-                val examsFlow = if (activeOnly) localDataSource.observeActiveExams() else localDataSource.observeExams()
+                val examsFlow = if (activeOnly) localDataSource.observeActiveExams() else localDataSource.observeAllExams()
                 examsFlow.map { exams ->
                     exams.sortedWith(compareBy({ it.sortOrder }, { it.name }))
                         .map { it.toSyllabusNode() }
@@ -321,6 +322,9 @@ class EducationalRepositoryImpl(
                 }
             }
             parentType == SyllabusNodeType.SUBTOPIC -> {
+                flowOf(emptyList())
+            }
+            else -> {
                 flowOf(emptyList())
             }
         }.catch { emit(emptyList()) }
@@ -405,32 +409,36 @@ class EducationalRepositoryImpl(
     ): SyllabusTreeNode? = withContext(ioDispatcher) {
         val rootExam = getSyllabusNode(examId, SyllabusNodeType.EXAM) ?: return@withContext null
 
-        val papers = if (activeOnly) {
-            localDataSource.getPapersByExamId(examId).filter { it.isActive }
+        val papersFlow = if (activeOnly) {
+            localDataSource.observeActivePapersByExamId(examId)
         } else {
-            localDataSource.getPapersByExamId(examId)
-        }.sortedWith(compareBy({ it.sortOrder }, { it.name }))
+            localDataSource.observePapersByExamId(examId)
+        }
+        val papers = papersFlow.first().sortedWith(compareBy({ it.sortOrder }, { it.name }))
 
         val paperTreeNodes = papers.map { paper ->
-            val subjects = if (activeOnly) {
-                localDataSource.getSubjectsByPaperId(paper.id).filter { it.isActive }
+            val subjectsFlow = if (activeOnly) {
+                localDataSource.observeActiveSubjectsByPaperId(paper.id)
             } else {
-                localDataSource.getSubjectsByPaperId(paper.id)
-            }.sortedWith(compareBy({ it.sortOrder }, { it.name }))
+                localDataSource.observeSubjectsByPaperId(paper.id)
+            }
+            val subjects = subjectsFlow.first().sortedWith(compareBy({ it.sortOrder }, { it.name }))
 
             val subjectTreeNodes = subjects.map { subject ->
-                val topics = if (activeOnly) {
-                    localDataSource.getTopicsBySubjectId(subject.id).filter { it.isActive }
+                val topicsFlow = if (activeOnly) {
+                    localDataSource.observeActiveTopicsBySubjectId(subject.id)
                 } else {
-                    localDataSource.getTopicsBySubjectId(subject.id)
-                }.sortedWith(compareBy({ it.sortOrder }, { it.name }))
+                    localDataSource.observeTopicsBySubjectId(subject.id)
+                }
+                val topics = topicsFlow.first().sortedWith(compareBy({ it.sortOrder }, { it.name }))
 
                 val topicTreeNodes = topics.map { topic ->
-                    val subtopics = if (activeOnly) {
-                        localDataSource.getSubtopicsByTopicId(topic.id).filter { it.isActive }
+                    val subtopicsFlow = if (activeOnly) {
+                        localDataSource.observeActiveSubtopicsByTopicId(topic.id)
                     } else {
-                        localDataSource.getSubtopicsByTopicId(topic.id)
-                    }.sortedWith(compareBy({ it.sortOrder }, { it.name }))
+                        localDataSource.observeSubtopicsByTopicId(topic.id)
+                    }
+                    val subtopics = subtopicsFlow.first().sortedWith(compareBy({ it.sortOrder }, { it.name }))
 
                     val subtopicTreeNodes = subtopics.map { subtopic ->
                         SyllabusTreeNode(node = subtopic.toSyllabusNode())

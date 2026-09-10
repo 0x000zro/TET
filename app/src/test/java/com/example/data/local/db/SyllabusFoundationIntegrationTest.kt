@@ -98,7 +98,13 @@ class SyllabusFoundationIntegrationTest {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     // Create v1 tables
                     db.execSQL(
-                        "CREATE TABLE IF NOT EXISTS `app_state` (`id` TEXT NOT NULL, `is_first_launch` INTEGER NOT NULL, `active_exam_id` TEXT, `onboarding_completed` INTEGER NOT NULL, `updated_at_timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                        "CREATE TABLE IF NOT EXISTS `app_state` (`id` TEXT NOT NULL, `is_first_launch` INTEGER NOT NULL, `is_content_initialized` INTEGER NOT NULL, `last_known_content_version` INTEGER NOT NULL, `schema_version` INTEGER NOT NULL, `is_compatible` INTEGER NOT NULL, `last_launch_timestamp` INTEGER NOT NULL, `updated_at_timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                    )
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `local_preferences` (`preference_key` TEXT NOT NULL, `preference_value` TEXT NOT NULL, `updated_at_timestamp` INTEGER NOT NULL, PRIMARY KEY(`preference_key`))"
+                    )
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `content_sync_state` (`content_source` TEXT NOT NULL, `content_version` INTEGER NOT NULL, `last_successful_sync_timestamp` INTEGER, `sync_status` TEXT NOT NULL, `error_message` TEXT, `updated_at_timestamp` INTEGER NOT NULL, PRIMARY KEY(`content_source`))"
                     )
                     // Create v2 tables
                     db.execSQL(
@@ -106,6 +112,15 @@ class SyllabusFoundationIntegrationTest {
                     )
                     db.execSQL(
                         "CREATE TABLE IF NOT EXISTS `papers` (`id` TEXT NOT NULL, `exam_id` TEXT NOT NULL, `name` TEXT NOT NULL, `short_name` TEXT NOT NULL, `description` TEXT NOT NULL, `is_active` INTEGER NOT NULL, `sort_order` INTEGER NOT NULL, `updated_at_timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                    )
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `subjects` (`id` TEXT NOT NULL, `paper_id` TEXT NOT NULL, `name` TEXT NOT NULL, `short_name` TEXT NOT NULL, `description` TEXT NOT NULL, `is_active` INTEGER NOT NULL, `sort_order` INTEGER NOT NULL, `updated_at_timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                    )
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `topics` (`id` TEXT NOT NULL, `subject_id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `is_active` INTEGER NOT NULL, `sort_order` INTEGER NOT NULL, `updated_at_timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                    )
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `subtopics` (`id` TEXT NOT NULL, `topic_id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `is_active` INTEGER NOT NULL, `sort_order` INTEGER NOT NULL, `updated_at_timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))"
                     )
                 }
 
@@ -119,13 +134,22 @@ class SyllabusFoundationIntegrationTest {
         v2Db.execSQL("INSERT INTO papers VALUES ('paper_pre_migration', 'exam_pre_migration', 'Paper Pre', 'PP', 'Desc', 1, 1, 1000)")
         v2Db.close()
 
-        // 2. Open with Room specifying MIGRATION_2_3 to version 3
-        val migratedDb = Room.databaseBuilder(context, AppDatabase::class.java, dbName)
-            .addMigrations(DatabaseMigrations.MIGRATION_2_3)
-            .allowMainThreadQueries()
-            .build()
+        // 2. Open with SQLite specifying MIGRATION_2_3 to version 3
+        val helperV3 = FrameworkSQLiteOpenHelperFactory().create(
+            androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(dbName)
+                .callback(object : androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(3) {
+                    override fun onCreate(db: SupportSQLiteDatabase) {}
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {
+                        if (oldVersion == 2 && newVersion == 3) {
+                            DatabaseMigrations.MIGRATION_2_3.migrate(db)
+                        }
+                    }
+                })
+                .build()
+        )
 
-        val migratedHelper = migratedDb.openHelper.readableDatabase
+        val migratedHelper = helperV3.writableDatabase
         assertEquals(3, migratedHelper.version)
 
         // 3. Verify pre-migration data intact
@@ -143,7 +167,7 @@ class SyllabusFoundationIntegrationTest {
         assertEquals("Understand Paper Pre", cursorMeta.getString(0))
         cursorMeta.close()
 
-        migratedDb.close()
+        migratedHelper.close()
         context.deleteDatabase(dbName)
     }
 
@@ -178,6 +202,9 @@ class SyllabusFoundationIntegrationTest {
 
     @Test
     fun repository_resolvesSyllabusNodeWithMetadata() = runBlocking {
+        repository.saveExam(GenericSyllabusFixture.fixtureExam)
+        repository.savePaper(GenericSyllabusFixture.fixturePaper)
+        repository.saveSubject(GenericSyllabusFixture.fixtureSubject)
         repository.saveTopic(GenericSyllabusFixture.fixtureTopic)
         repository.saveSubtopic(GenericSyllabusFixture.fixtureSubtopics[0])
         repository.saveSyllabusMetadata(
