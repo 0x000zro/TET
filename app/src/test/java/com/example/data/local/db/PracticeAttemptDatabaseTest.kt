@@ -68,7 +68,7 @@ class PracticeAttemptDatabaseTest {
             .allowMainThreadQueries()
             .build()
 
-        val localDataSource = DefaultLocalEducationalDataSource(database, testDispatcher)
+        val localDataSource = DefaultLocalEducationalDataSource { database }
         repository = EducationalRepositoryImpl(
             localDataSource = localDataSource,
             ioDispatcher = testDispatcher
@@ -76,22 +76,22 @@ class PracticeAttemptDatabaseTest {
 
         // Seed educational hierarchy to satisfy foreign keys
         runBlocking {
-            database.examDao().insertExam(
-                ExamEntity(id = examId, code = "GATE", name = "GATE CS", isActive = true)
+            database.examDao().insertOrUpdateExam(
+                ExamEntity(id = examId, name = "GATE CS", shortName = "GATE", isActive = true)
             )
-            database.paperDao().insertPaper(
-                PaperEntity(id = paperId, examId = examId, name = "Paper 1", isActive = true)
+            database.paperDao().insertOrUpdatePaper(
+                PaperEntity(id = paperId, examId = examId, name = "Paper 1", shortName = "P1", isActive = true)
             )
-            database.subjectDao().insertSubject(
-                SubjectEntity(id = subjectId, paperId = paperId, name = "Algorithms", isActive = true)
+            database.subjectDao().insertOrUpdateSubject(
+                SubjectEntity(id = subjectId, paperId = paperId, name = "Algorithms", shortName = "Algo", isActive = true)
             )
-            database.topicDao().insertTopic(
+            database.topicDao().insertOrUpdateTopic(
                 TopicEntity(id = topicId, subjectId = subjectId, name = "Sorting", isActive = true)
             )
-            database.subtopicDao().insertSubtopic(
+            database.subtopicDao().insertOrUpdateSubtopic(
                 SubtopicEntity(id = subtopicId1, topicId = topicId, name = "Quicksort", isActive = true)
             )
-            database.subtopicDao().insertSubtopic(
+            database.subtopicDao().insertOrUpdateSubtopic(
                 SubtopicEntity(id = subtopicId2, topicId = topicId, name = "Mergesort", isActive = true)
             )
         }

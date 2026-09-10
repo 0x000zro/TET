@@ -83,9 +83,9 @@ class QuestionFoundationIntegrationTest {
     }
 
     @Test
-    fun databaseVersion_isVersionFour() {
+    fun databaseVersion_isVersionCurrent() {
         val version = database.openHelper.readableDatabase.version
-        assertEquals(4, version)
+        assertEquals(DatabaseContract.DATABASE_VERSION, version)
     }
 
     @Test
