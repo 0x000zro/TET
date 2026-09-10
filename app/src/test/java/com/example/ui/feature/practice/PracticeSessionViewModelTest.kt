@@ -312,6 +312,48 @@ class PracticeSessionViewModelTest {
     }
 
     @Test
+    fun incompleteSession_doesNotPersistAttempt_whenSessionInProgress() = runTest {
+        fakeRepository.questionsMap["q_1"] = sampleQuestion1
+        fakeRepository.questionsMap["q_2"] = sampleQuestion2
+
+        viewModel.startSession("sub_math")
+        advanceUntilIdle()
+
+        // Select option and submit answer for Q1
+        viewModel.selectOption("opt_1_b")
+        viewModel.submitAnswer()
+        advanceUntilIdle()
+
+        // Advance to Q2
+        viewModel.nextQuestion()
+        advanceUntilIdle()
+
+        // Session is still active and incomplete: verify zero attempts saved
+        assertTrue(viewModel.sessionState.value is PracticeSessionUiState.ActiveQuestion)
+        assertTrue(fakeRepository.practiceAttempts.isEmpty())
+    }
+
+    @Test
+    fun incompleteSession_doesNotPersistAttempt_whenSessionReset() = runTest {
+        fakeRepository.questionsMap["q_1"] = sampleQuestion1
+        fakeRepository.questionsMap["q_2"] = sampleQuestion2
+
+        viewModel.startSession("sub_math")
+        advanceUntilIdle()
+
+        viewModel.selectOption("opt_1_b")
+        viewModel.submitAnswer()
+        advanceUntilIdle()
+
+        // User navigates away or resets incomplete session
+        viewModel.resetSession()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.sessionState.value is PracticeSessionUiState.Loading)
+        assertTrue(fakeRepository.practiceAttempts.isEmpty())
+    }
+
+    @Test
     fun finishSession_isIdempotent_doesNotDuplicateAttempts() = runTest {
         fakeRepository.questionsMap["q_1"] = sampleQuestion1
 

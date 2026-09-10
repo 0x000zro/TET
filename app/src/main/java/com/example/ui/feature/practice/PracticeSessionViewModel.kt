@@ -265,8 +265,10 @@ class PracticeSessionViewModel(
 
         viewModelScope.launch {
             try {
-                repository.savePracticeAttempt(attempt)
-                isAttemptSaved = true
+                val saveResult = repository.savePracticeAttempt(attempt)
+                if (saveResult.isSuccess) {
+                    isAttemptSaved = true
+                }
             } catch (_: Exception) {
                 // Failure to persist locally must never corrupt or crash the in-memory session result
             } finally {

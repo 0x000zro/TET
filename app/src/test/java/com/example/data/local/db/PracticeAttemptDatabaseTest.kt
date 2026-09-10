@@ -206,6 +206,164 @@ class PracticeAttemptDatabaseTest {
     }
 
     @Test
+    fun entityMapping_toDomainAndToEntity_preservesAllFieldsExact() {
+        val originalDomain = PracticeAttempt(
+            id = "att_map_1",
+            subtopicId = "sub_quicksort",
+            totalQuestions = 10,
+            answeredQuestions = 9,
+            correctAnswers = 8,
+            incorrectAnswers = 1,
+            percentageScore = 80.0,
+            startedAt = 10000L,
+            completedAt = 20000L
+        )
+
+        // Map domain to entity
+        val entity = with(com.example.data.local.db.mapper.DatabaseMappers) {
+            originalDomain.toEntity()
+        }
+        assertEquals("att_map_1", entity.id)
+        assertEquals("sub_quicksort", entity.subtopicId)
+        assertEquals(10, entity.totalQuestions)
+        assertEquals(9, entity.answeredQuestions)
+        assertEquals(8, entity.correctAnswers)
+        assertEquals(1, entity.incorrectAnswers)
+        assertEquals(80.0, entity.percentageScore, 0.001)
+        assertEquals(10000L, entity.startedAt)
+        assertEquals(20000L, entity.completedAt)
+
+        // Map entity back to domain
+        val mappedDomain = with(com.example.data.local.db.mapper.DatabaseMappers) {
+            entity.toDomain()
+        }
+        assertEquals(originalDomain, mappedDomain)
+        assertEquals(1, mappedDomain.unansweredQuestions)
+    }
+
+    @Test
+    fun daoDirectOperations_insertQueryAndOrder_workDirectlyOnDao() = runTest {
+        val dao = database.practiceAttemptDao()
+
+        val entity1 = PracticeAttemptEntity(
+            id = "dao_att_1",
+            subtopicId = subtopicId1,
+            totalQuestions = 4,
+            answeredQuestions = 4,
+            correctAnswers = 3,
+            incorrectAnswers = 1,
+            percentageScore = 75.0,
+            startedAt = 1000L,
+            completedAt = 2000L
+        )
+        val entity2 = PracticeAttemptEntity(
+            id = "dao_att_2",
+            subtopicId = subtopicId1,
+            totalQuestions = 4,
+            answeredQuestions = 4,
+            correctAnswers = 4,
+            incorrectAnswers = 0,
+            percentageScore = 100.0,
+            startedAt = 3000L,
+            completedAt = 4000L
+        )
+
+        dao.insertOrUpdateAttempt(entity1)
+        dao.insertOrUpdateAttempt(entity2)
+
+        val retrieved = dao.getAttemptById("dao_att_1")
+        assertNotNull(retrieved)
+        assertEquals(75.0, retrieved?.percentageScore ?: 0.0, 0.001)
+
+        val attempts = dao.getAttemptsBySubtopicId(subtopicId1)
+        assertEquals(2, attempts.size)
+        // Deterministic ordering: newest completed first
+        assertEquals("dao_att_2", attempts[0].id)
+        assertEquals("dao_att_1", attempts[1].id)
+
+        val count = dao.getAttemptCountBySubtopicId(subtopicId1)
+        assertEquals(2, count)
+    }
+
+    @Test
+    fun daoDuplicateInsert_isIdempotentAndUpdatesExistingRecord() = runTest {
+        val dao = database.practiceAttemptDao()
+
+        val initialEntity = PracticeAttemptEntity(
+            id = "dup_test_1",
+            subtopicId = subtopicId1,
+            totalQuestions = 5,
+            answeredQuestions = 5,
+            correctAnswers = 3,
+            incorrectAnswers = 2,
+            percentageScore = 60.0,
+            startedAt = 1000L,
+            completedAt = 2000L
+        )
+        dao.insertOrUpdateAttempt(initialEntity)
+
+        // Resave with same ID but updated values
+        val updatedEntity = PracticeAttemptEntity(
+            id = "dup_test_1",
+            subtopicId = subtopicId1,
+            totalQuestions = 5,
+            answeredQuestions = 5,
+            correctAnswers = 5,
+            incorrectAnswers = 0,
+            percentageScore = 100.0,
+            startedAt = 1000L,
+            completedAt = 2500L
+        )
+        dao.insertOrUpdateAttempt(updatedEntity)
+
+        val attempts = dao.getAttemptsBySubtopicId(subtopicId1)
+        assertEquals(1, attempts.size)
+        assertEquals("dup_test_1", attempts[0].id)
+        assertEquals(100.0, attempts[0].percentageScore, 0.001)
+        assertEquals(5, attempts[0].correctAnswers)
+    }
+
+    @Test
+    fun subtopicFiltering_strictlySeparatesAttemptsAcrossSubtopics() = runTest {
+        val dao = database.practiceAttemptDao()
+
+        dao.insertOrUpdateAttempt(
+            PracticeAttemptEntity(
+                id = "att_sub1",
+                subtopicId = subtopicId1,
+                totalQuestions = 3,
+                answeredQuestions = 3,
+                correctAnswers = 2,
+                incorrectAnswers = 1,
+                percentageScore = 66.7,
+                startedAt = 1000L,
+                completedAt = 2000L
+            )
+        )
+        dao.insertOrUpdateAttempt(
+            PracticeAttemptEntity(
+                id = "att_sub2",
+                subtopicId = subtopicId2,
+                totalQuestions = 3,
+                answeredQuestions = 3,
+                correctAnswers = 3,
+                incorrectAnswers = 0,
+                percentageScore = 100.0,
+                startedAt = 1000L,
+                completedAt = 2000L
+            )
+        )
+
+        val sub1Attempts = dao.getAttemptsBySubtopicId(subtopicId1)
+        assertEquals(1, sub1Attempts.size)
+        assertEquals("att_sub1", sub1Attempts[0].id)
+
+        val sub2Attempts = dao.getAttemptsBySubtopicId(subtopicId2)
+        assertEquals(1, sub2Attempts.size)
+        assertEquals("att_sub2", sub2Attempts[0].id)
+    }
+
+    @Test
     fun deleteAttemptById_removesAttemptSuccessfully() = runTest {
         val attempt = PracticeAttempt(
             id = "att_delete_test",
