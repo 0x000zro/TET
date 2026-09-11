@@ -352,4 +352,110 @@ open class TestEducationalRepository : EducationalRepository {
         if (shouldThrowOnBookmark) throw RuntimeException("Simulated bookmark failure")
         return bookmarkedQuestions.size
     }
+
+    // --- Previous Year Question (PYQ) Operations ---
+    val pyqList = mutableListOf<com.example.domain.model.pyq.PreviousYearQuestion>()
+    var shouldThrowOnPyq = false
+    private val pyqUpdateSignal = MutableStateFlow(0)
+    private fun notifyPyqsChanged() { pyqUpdateSignal.value += 1 }
+
+    override fun observeAllPreviousYearQuestions(): Flow<List<com.example.domain.model.pyq.PreviousYearQuestion>> =
+        pyqUpdateSignal.map {
+            if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+            pyqList.toList()
+        }
+
+    override fun observePreviousYearQuestionsByExamId(examId: String): Flow<List<com.example.domain.model.pyq.PreviousYearQuestion>> =
+        pyqUpdateSignal.map {
+            if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+            pyqList.filter { it.examId == examId }
+        }
+
+    override fun observePreviousYearQuestionsByPaperId(paperId: String): Flow<List<com.example.domain.model.pyq.PreviousYearQuestion>> =
+        pyqUpdateSignal.map {
+            if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+            pyqList.filter { it.paperId == paperId }
+        }
+
+    override fun observePreviousYearQuestionsByPaperIdAndYear(paperId: String, year: Int): Flow<List<com.example.domain.model.pyq.PreviousYearQuestion>> =
+        pyqUpdateSignal.map {
+            if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+            pyqList.filter { it.paperId == paperId && it.year == year }
+        }
+
+    override fun observePreviousYearQuestionsBySubtopicId(subtopicId: String): Flow<List<com.example.domain.model.pyq.PreviousYearQuestion>> =
+        pyqUpdateSignal.map {
+            if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+            pyqList.filter { pyq -> questionsMap[pyq.questionId]?.subtopicId == subtopicId }
+        }
+
+    override fun observePreviousYearQuestionByQuestionId(questionId: String): Flow<com.example.domain.model.pyq.PreviousYearQuestion?> =
+        pyqUpdateSignal.map {
+            if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+            pyqList.find { it.questionId == questionId }
+        }
+
+    override suspend fun getPreviousYearQuestionByQuestionId(questionId: String): com.example.domain.model.pyq.PreviousYearQuestion? {
+        if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+        return pyqList.find { it.questionId == questionId }
+    }
+
+    override suspend fun getPreviousYearQuestionById(id: String): com.example.domain.model.pyq.PreviousYearQuestion? {
+        if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+        return pyqList.find { it.id == id }
+    }
+
+    override fun observeDistinctYearsForPaper(paperId: String): Flow<List<Int>> =
+        pyqUpdateSignal.map {
+            if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+            pyqList.filter { it.paperId == paperId }.map { it.year }.distinct().sortedDescending()
+        }
+
+    override suspend fun getDistinctYearsForPaper(paperId: String): List<Int> {
+        if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+        return pyqList.filter { it.paperId == paperId }.map { it.year }.distinct().sortedDescending()
+    }
+
+    override fun observeAllDistinctYears(): Flow<List<Int>> =
+        pyqUpdateSignal.map {
+            if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+            pyqList.map { it.year }.distinct().sortedDescending()
+        }
+
+    override suspend fun savePreviousYearQuestion(pyq: com.example.domain.model.pyq.PreviousYearQuestion): Result<Unit> {
+        if (shouldThrowOnPyq) return Result.failure(RuntimeException("Simulated save pyq failure"))
+        val existingIndex = pyqList.indexOfFirst { it.id == pyq.id || (it.questionId == pyq.questionId && it.year == pyq.year && it.session == pyq.session) }
+        if (existingIndex >= 0) {
+            pyqList[existingIndex] = pyq
+        } else {
+            pyqList.add(pyq)
+        }
+        notifyPyqsChanged()
+        return Result.success(Unit)
+    }
+
+    override suspend fun deletePreviousYearQuestion(id: String): Result<Unit> {
+        if (shouldThrowOnPyq) return Result.failure(RuntimeException("Simulated delete pyq failure"))
+        pyqList.removeIf { it.id == id }
+        notifyPyqsChanged()
+        return Result.success(Unit)
+    }
+
+    override suspend fun deletePreviousYearQuestionByQuestionId(questionId: String): Result<Unit> {
+        if (shouldThrowOnPyq) return Result.failure(RuntimeException("Simulated delete pyq failure"))
+        pyqList.removeIf { it.questionId == questionId }
+        notifyPyqsChanged()
+        return Result.success(Unit)
+    }
+
+    override fun observePreviousYearQuestionCount(): Flow<Int> =
+        pyqUpdateSignal.map {
+            if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+            pyqList.size
+        }
+
+    override suspend fun getPreviousYearQuestionCount(): Int {
+        if (shouldThrowOnPyq) throw RuntimeException("Simulated pyq failure")
+        return pyqList.size
+    }
 }

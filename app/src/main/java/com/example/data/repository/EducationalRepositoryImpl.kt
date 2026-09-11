@@ -24,6 +24,7 @@ import com.example.domain.model.SyllabusTreeNode
 import com.example.domain.model.Topic
 import com.example.domain.model.bookmark.BookmarkedQuestion
 import com.example.domain.model.practice.PracticeAttempt
+import com.example.domain.model.pyq.PreviousYearQuestion
 import com.example.domain.model.wrongquestion.WrongQuestion
 import com.example.domain.repository.EducationalRepository
 import com.example.domain.validation.QuestionValidator
@@ -696,5 +697,80 @@ class EducationalRepositoryImpl(
 
     override suspend fun getBookmarkCount(): Int = withContext(ioDispatcher) {
         runCatching { localDataSource.getBookmarkCount() }.getOrDefault(0)
+    }
+
+    // --- Previous Year Question (PYQ) Operations (Step 15) ---
+
+    override fun observeAllPreviousYearQuestions(): Flow<List<PreviousYearQuestion>> {
+        return localDataSource.observeAllPreviousYearQuestions()
+            .catch { emit(emptyList()) }
+    }
+
+    override fun observePreviousYearQuestionsByExamId(examId: String): Flow<List<PreviousYearQuestion>> {
+        return localDataSource.observePreviousYearQuestionsByExamId(examId)
+            .catch { emit(emptyList()) }
+    }
+
+    override fun observePreviousYearQuestionsByPaperId(paperId: String): Flow<List<PreviousYearQuestion>> {
+        return localDataSource.observePreviousYearQuestionsByPaperId(paperId)
+            .catch { emit(emptyList()) }
+    }
+
+    override fun observePreviousYearQuestionsByPaperIdAndYear(paperId: String, year: Int): Flow<List<PreviousYearQuestion>> {
+        return localDataSource.observePreviousYearQuestionsByPaperIdAndYear(paperId, year)
+            .catch { emit(emptyList()) }
+    }
+
+    override fun observePreviousYearQuestionsBySubtopicId(subtopicId: String): Flow<List<PreviousYearQuestion>> {
+        return localDataSource.observePreviousYearQuestionsBySubtopicId(subtopicId)
+            .catch { emit(emptyList()) }
+    }
+
+    override fun observePreviousYearQuestionByQuestionId(questionId: String): Flow<PreviousYearQuestion?> {
+        return localDataSource.observePreviousYearQuestionByQuestionId(questionId)
+            .catch { emit(null) }
+    }
+
+    override suspend fun getPreviousYearQuestionByQuestionId(questionId: String): PreviousYearQuestion? = withContext(ioDispatcher) {
+        runCatching { localDataSource.getPreviousYearQuestionByQuestionId(questionId) }.getOrNull()
+    }
+
+    override suspend fun getPreviousYearQuestionById(id: String): PreviousYearQuestion? = withContext(ioDispatcher) {
+        runCatching { localDataSource.getPreviousYearQuestionById(id) }.getOrNull()
+    }
+
+    override fun observeDistinctYearsForPaper(paperId: String): Flow<List<Int>> {
+        return localDataSource.observeDistinctYearsForPaper(paperId)
+            .catch { emit(emptyList()) }
+    }
+
+    override suspend fun getDistinctYearsForPaper(paperId: String): List<Int> = withContext(ioDispatcher) {
+        runCatching { localDataSource.getDistinctYearsForPaper(paperId) }.getOrDefault(emptyList())
+    }
+
+    override fun observeAllDistinctYears(): Flow<List<Int>> {
+        return localDataSource.observeAllDistinctYears()
+            .catch { emit(emptyList()) }
+    }
+
+    override suspend fun savePreviousYearQuestion(pyq: PreviousYearQuestion): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.savePreviousYearQuestion(pyq) }
+    }
+
+    override suspend fun deletePreviousYearQuestion(id: String): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.deletePreviousYearQuestionById(id) }
+    }
+
+    override suspend fun deletePreviousYearQuestionByQuestionId(questionId: String): Result<Unit> = withContext(ioDispatcher) {
+        runCatching { localDataSource.deletePreviousYearQuestionByQuestionId(questionId) }
+    }
+
+    override fun observePreviousYearQuestionCount(): Flow<Int> {
+        return localDataSource.observePreviousYearQuestionCount()
+            .catch { emit(0) }
+    }
+
+    override suspend fun getPreviousYearQuestionCount(): Int = withContext(ioDispatcher) {
+        runCatching { localDataSource.getPreviousYearQuestionCount() }.getOrDefault(0)
     }
 }
