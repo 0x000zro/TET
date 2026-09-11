@@ -195,4 +195,22 @@ interface EducationalRepository {
     suspend fun toggleBookmark(questionId: String, subtopicId: String, timestamp: Long = System.currentTimeMillis()): Result<Boolean>
     fun observeBookmarkCount(): Flow<Int>
     suspend fun getBookmarkCount(): Int
+
+    // Previous Year Question (PYQ) Operations (Step 15)
+    fun observeAllPreviousYearQuestions(): Flow<List<com.example.domain.model.pyq.PreviousYearQuestion>>
+    fun observePreviousYearQuestionsByExamId(examId: String): Flow<List<com.example.domain.model.pyq.PreviousYearQuestion>>
+    fun observePreviousYearQuestionsByPaperId(paperId: String): Flow<List<com.example.domain.model.pyq.PreviousYearQuestion>>
+    fun observePreviousYearQuestionsByPaperIdAndYear(paperId: String, year: Int): Flow<List<com.example.domain.model.pyq.PreviousYearQuestion>>
+    fun observePreviousYearQuestionsBySubtopicId(subtopicId: String): Flow<List<com.example.domain.model.pyq.PreviousYearQuestion>>
+    fun observePreviousYearQuestionByQuestionId(questionId: String): Flow<com.example.domain.model.pyq.PreviousYearQuestion?>
+    suspend fun getPreviousYearQuestionByQuestionId(questionId: String): com.example.domain.model.pyq.PreviousYearQuestion?
+    suspend fun getPreviousYearQuestionById(id: String): com.example.domain.model.pyq.PreviousYearQuestion?
+    fun observeDistinctYearsForPaper(paperId: String): Flow<List<Int>>
+    suspend fun getDistinctYearsForPaper(paperId: String): List<Int>
+    fun observeAllDistinctYears(): Flow<List<Int>>
+    suspend fun savePreviousYearQuestion(pyq: com.example.domain.model.pyq.PreviousYearQuestion): Result<Unit>
+    suspend fun deletePreviousYearQuestion(id: String): Result<Unit>
+    suspend fun deletePreviousYearQuestionByQuestionId(questionId: String): Result<Unit>
+    fun observePreviousYearQuestionCount(): Flow<Int>
+    suspend fun getPreviousYearQuestionCount(): Int
 }
