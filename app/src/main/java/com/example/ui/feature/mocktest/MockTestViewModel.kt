@@ -96,19 +96,24 @@ class MockTestViewModel(
                     return@launch
                 }
 
-                // If available questions are fewer than configured questionCount, fail with error:
-                // Do NOT silently reduce requested question count!
-                if (availableCount < resolvedConfig.questionCount) {
-                    _uiState.value = MockTestUiState.Error(
-                        "Insufficient active questions available: requested ${resolvedConfig.questionCount}, but only $availableCount are available for this scope."
-                    )
-                    return@launch
+                val finalConfig = if (configuration == null) {
+                    // Default configuration adapts question count to available questions
+                    resolvedConfig.copy(questionCount = minOf(resolvedConfig.questionCount, availableCount))
+                } else {
+                    // Custom user-requested configuration requires sufficient questions
+                    if (availableCount < resolvedConfig.questionCount) {
+                        _uiState.value = MockTestUiState.Error(
+                            "Insufficient active questions available: requested ${resolvedConfig.questionCount}, but only $availableCount are available for this scope."
+                        )
+                        return@launch
+                    }
+                    resolvedConfig
                 }
 
-                activeConfiguration = resolvedConfig
+                activeConfiguration = finalConfig
 
                 _uiState.value = MockTestUiState.ConfigurationOverview(
-                    configuration = resolvedConfig,
+                    configuration = finalConfig,
                     examTitle = examTitle,
                     paperTitle = paperTitle,
                     scopeDescription = scopeDesc,

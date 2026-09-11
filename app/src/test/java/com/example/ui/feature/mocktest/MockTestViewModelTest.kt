@@ -298,6 +298,52 @@ class MockTestViewModelTest {
     }
 
     @Test
+    fun abandonConfirmation_toggleControlsDialog() = runTest {
+        val q1 = createQuestion("q_1", sortOrder = 1)
+        repository.questionsMap[q1.id] = q1
+
+        viewModel.loadTestConfiguration()
+        advanceUntilIdle()
+        viewModel.startTest()
+        advanceUntilIdle()
+
+        var active = viewModel.uiState.value as MockTestUiState.ActiveTest
+        assertFalse(active.showAbandonConfirmation)
+
+        viewModel.setAbandonConfirmationVisible(true)
+        active = viewModel.uiState.value as MockTestUiState.ActiveTest
+        assertTrue(active.showAbandonConfirmation)
+
+        viewModel.setAbandonConfirmationVisible(false)
+        active = viewModel.uiState.value as MockTestUiState.ActiveTest
+        assertFalse(active.showAbandonConfirmation)
+    }
+
+    @Test
+    fun loadTestConfiguration_withInsufficientQuestionsForCustomConfig_emitsError() = runTest {
+        val q1 = createQuestion("q_1", sortOrder = 1)
+        repository.questionsMap[q1.id] = q1
+
+        val customConfig = MockTestConfiguration(
+            id = "cfg_high",
+            title = "High Count Config",
+            examId = "exam_1",
+            paperId = "paper_1",
+            scope = MockTestScope.FullPaper,
+            questionCount = 10, // requires 10, only 1 available
+            durationMinutes = 15
+        )
+
+        viewModel.loadTestConfiguration(customConfig)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state is MockTestUiState.Error)
+        val err = state as MockTestUiState.Error
+        assertTrue(err.message.contains("Insufficient active questions"))
+    }
+
+    @Test
     fun loadTestConfiguration_withInvalidScope_handlesErrorSafely() = runTest {
         val invalidConfig = MockTestConfiguration(
             id = "cfg_err",
