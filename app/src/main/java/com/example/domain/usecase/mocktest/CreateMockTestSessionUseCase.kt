@@ -63,6 +63,12 @@ class CreateMockTestSessionUseCase(
             return CreateMockTestOutcome.Failure.HierarchyNotFound("Paper ${paper.id} does not belong to Exam ${exam.id}")
         }
 
+        // Validate that the requested scope strictly belongs to the configured Exam and Paper
+        val scopeHierarchyError = validateScopeBelongsToPaper(configuration.paperId, configuration.scope)
+        if (scopeHierarchyError != null) {
+            return CreateMockTestOutcome.Failure.HierarchyNotFound(scopeHierarchyError)
+        }
+
         // Resolve candidate subtopic IDs based on scope
         val subtopicIds = resolveSubtopicIds(configuration.paperId, configuration.scope)
         if (subtopicIds.isEmpty()) {
@@ -88,6 +94,43 @@ class CreateMockTestSessionUseCase(
         }
 
         return createFromQuestions(configuration, allQuestions)
+    }
+
+    /**
+     * Validates that the educational scope belongs to the configured Paper.
+     * Returns an error message if invalid, or null if valid.
+     */
+    suspend fun validateScopeBelongsToPaper(paperId: String, scope: MockTestScope): String? {
+        return when (scope) {
+            MockTestScope.FullPaper -> null
+            is MockTestScope.SubjectScope -> {
+                val subject = repository.getSubjectById(scope.subjectId)
+                    ?: return "Subject not found: ${scope.subjectId}"
+                if (subject.paperId != paperId) {
+                    "Subject ${subject.id} does not belong to Paper $paperId"
+                } else null
+            }
+            is MockTestScope.TopicScope -> {
+                val topic = repository.getTopicById(scope.topicId)
+                    ?: return "Topic not found: ${scope.topicId}"
+                val subject = repository.getSubjectById(topic.subjectId)
+                    ?: return "Subject ${topic.subjectId} for Topic ${topic.id} not found"
+                if (subject.paperId != paperId) {
+                    "Topic ${topic.id} belongs to Subject ${subject.id}, which does not belong to Paper $paperId"
+                } else null
+            }
+            is MockTestScope.SubtopicScope -> {
+                val subtopic = repository.getSubtopicById(scope.subtopicId)
+                    ?: return "Subtopic not found: ${scope.subtopicId}"
+                val topic = repository.getTopicById(subtopic.topicId)
+                    ?: return "Topic ${subtopic.topicId} for Subtopic ${subtopic.id} not found"
+                val subject = repository.getSubjectById(topic.subjectId)
+                    ?: return "Subject ${topic.subjectId} for Subtopic ${subtopic.id} not found"
+                if (subject.paperId != paperId) {
+                    "Subtopic ${subtopic.id} belongs to Subject ${subject.id}, which does not belong to Paper $paperId"
+                } else null
+            }
+        }
     }
 
     /**

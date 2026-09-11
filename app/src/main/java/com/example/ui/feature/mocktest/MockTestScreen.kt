@@ -1,5 +1,6 @@
 package com.example.ui.feature.mocktest
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -93,6 +94,21 @@ fun MockTestScreen(
     val uiState by viewModel.uiState.collectAsState()
     val dimensions = LocalDimensions.current
 
+    val isActiveTest = uiState is MockTestUiState.ActiveTest
+
+    // Intercept system Back when active test is in progress
+    BackHandler(enabled = isActiveTest) {
+        viewModel.setAbandonConfirmationVisible(true)
+    }
+
+    val handleBackClick = {
+        if (isActiveTest) {
+            viewModel.setAbandonConfirmationVisible(true)
+        } else {
+            onNavigateBack()
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (viewModel.uiState.value is MockTestUiState.Loading) {
             viewModel.loadTestConfiguration()
@@ -114,7 +130,7 @@ fun MockTestScreen(
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = onNavigateBack,
+                        onClick = handleBackClick,
                         modifier = Modifier.testTag("mock_test_back_button")
                     ) {
                         Icon(
@@ -166,7 +182,12 @@ fun MockTestScreen(
                         onNext = { viewModel.nextQuestion() },
                         onRequestFinish = { viewModel.setFinishConfirmationVisible(true) },
                         onConfirmFinish = { viewModel.confirmFinish() },
-                        onDismissFinish = { viewModel.setFinishConfirmationVisible(false) }
+                        onDismissFinish = { viewModel.setFinishConfirmationVisible(false) },
+                        onConfirmAbandon = {
+                            viewModel.setAbandonConfirmationVisible(false)
+                            onNavigateBack()
+                        },
+                        onDismissAbandon = { viewModel.setAbandonConfirmationVisible(false) }
                     )
                 }
                 is MockTestUiState.ResultSummary -> {
@@ -387,11 +408,49 @@ private fun MockTestActiveView(
     onRequestFinish: () -> Unit,
     onConfirmFinish: () -> Unit,
     onDismissFinish: () -> Unit,
+    onConfirmAbandon: () -> Unit,
+    onDismissAbandon: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val dimensions = LocalDimensions.current
     val scrollState = rememberScrollState()
     val question = state.currentQuestion
+
+    if (state.showAbandonConfirmation) {
+        AlertDialog(
+            onDismissRequest = onDismissAbandon,
+            title = {
+                Text(
+                    text = stringResource(R.string.mock_test_abandon_dialog_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.mock_test_abandon_dialog_message),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = onConfirmAbandon,
+                    modifier = Modifier.testTag("confirm_abandon_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.mock_test_abandon_dialog_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = onDismissAbandon,
+                    modifier = Modifier.testTag("dismiss_abandon_button")
+                ) {
+                    Text(stringResource(R.string.mock_test_abandon_dialog_dismiss))
+                }
+            }
+        )
+    }
 
     if (state.showFinishConfirmation) {
         AlertDialog(

@@ -3,7 +3,7 @@ package com.example.ui.feature.mocktest
 import com.example.domain.model.mocktest.MockTestConfiguration
 import com.example.domain.model.mocktest.MockTestResult
 import com.example.domain.model.mocktest.MockTestSession
-import com.example.ui.feature.question.model.QuestionPresentationModel
+import com.example.ui.feature.mocktest.model.MockTestQuestionPresentationModel
 
 /**
  * UI state hierarchy for the Mock Test feature (Step 17).
@@ -41,11 +41,11 @@ sealed interface MockTestUiState {
 
     /**
      * Active test state displaying the current question, answer options, navigation controls,
-     * and answering indicators.
+     * and answering indicators. Explanations and answer keys are strictly omitted.
      */
     data class ActiveTest(
         val session: MockTestSession,
-        val currentQuestion: QuestionPresentationModel,
+        val currentQuestion: MockTestQuestionPresentationModel,
         val currentQuestionIndex: Int, // 1-based for UI display
         val totalQuestions: Int,
         val selectedOptionId: String?,
@@ -54,7 +54,8 @@ sealed interface MockTestUiState {
         val hasPrevious: Boolean,
         val hasNext: Boolean,
         val isLastQuestion: Boolean,
-        val showFinishConfirmation: Boolean = false
+        val showFinishConfirmation: Boolean = false,
+        val showAbandonConfirmation: Boolean = false
     ) : MockTestUiState
 
     /**

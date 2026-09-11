@@ -12,7 +12,7 @@ import com.example.domain.usecase.mocktest.CreateMockTestOutcome
 import com.example.domain.usecase.mocktest.CreateMockTestSessionUseCase
 import com.example.domain.usecase.mocktest.FinishMockTestOutcome
 import com.example.domain.usecase.mocktest.FinishMockTestSessionUseCase
-import com.example.ui.feature.question.model.toPresentationModel
+import com.example.ui.feature.mocktest.model.toMockTestPresentationModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -96,17 +96,19 @@ class MockTestViewModel(
                     return@launch
                 }
 
-                // If available questions are fewer than configured questionCount, adapt questionCount to available count
-                val effectiveConfig = if (availableCount < resolvedConfig.questionCount) {
-                    resolvedConfig.copy(questionCount = availableCount)
-                } else {
-                    resolvedConfig
+                // If available questions are fewer than configured questionCount, fail with error:
+                // Do NOT silently reduce requested question count!
+                if (availableCount < resolvedConfig.questionCount) {
+                    _uiState.value = MockTestUiState.Error(
+                        "Insufficient active questions available: requested ${resolvedConfig.questionCount}, but only $availableCount are available for this scope."
+                    )
+                    return@launch
                 }
 
-                activeConfiguration = effectiveConfig
+                activeConfiguration = resolvedConfig
 
                 _uiState.value = MockTestUiState.ConfigurationOverview(
-                    configuration = effectiveConfig,
+                    configuration = resolvedConfig,
                     examTitle = examTitle,
                     paperTitle = paperTitle,
                     scopeDescription = scopeDesc,
@@ -205,10 +207,19 @@ class MockTestViewModel(
      * Requests finish confirmation dialog to be shown or dismissed.
      */
     fun setFinishConfirmationVisible(visible: Boolean) {
-        val current = activeSession ?: return
         val currentState = _uiState.value
         if (currentState is MockTestUiState.ActiveTest) {
             _uiState.value = currentState.copy(showFinishConfirmation = visible)
+        }
+    }
+
+    /**
+     * Requests abandon confirmation dialog to be shown or dismissed.
+     */
+    fun setAbandonConfirmationVisible(visible: Boolean) {
+        val currentState = _uiState.value
+        if (currentState is MockTestUiState.ActiveTest) {
+            _uiState.value = currentState.copy(showAbandonConfirmation = visible)
         }
     }
 
@@ -259,7 +270,7 @@ class MockTestViewModel(
             return
         }
 
-        val presentation = canonicalQuestion.toPresentationModel(
+        val presentation = canonicalQuestion.toMockTestPresentationModel(
             questionNumber = session.displayQuestionNumber
         )
 
@@ -274,7 +285,8 @@ class MockTestViewModel(
             hasPrevious = session.hasPreviousQuestion,
             hasNext = session.hasNextQuestion,
             isLastQuestion = session.isLastQuestion,
-            showFinishConfirmation = false
+            showFinishConfirmation = false,
+            showAbandonConfirmation = false
         )
     }
 

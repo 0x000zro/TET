@@ -245,6 +245,10 @@
     <string name="mock_test_finish_dialog_message">You have answered %1$d of %2$d questions. %3$d questions remain unanswered. Do you want to submit your test?</string>
     <string name="mock_test_finish_dialog_confirm">Yes, Finish</string>
     <string name="mock_test_finish_dialog_dismiss">Continue Test</string>
+    <string name="mock_test_abandon_dialog_title">Leave Mock Test?</string>
+    <string name="mock_test_abandon_dialog_message">Are you sure you want to abandon the test? Your progress will not be saved.</string>
+    <string name="mock_test_abandon_dialog_confirm">Leave Test</string>
+    <string name="mock_test_abandon_dialog_dismiss">Continue Test</string>
     <string name="mock_test_result_title">Mock Test Result</string>
     <string name="mock_test_result_subtitle">Performance Summary</string>
     <string name="mock_test_result_score_label">Final Score</string>
@@ -257,4 +261,5 @@
     <string name="mock_test_empty_title">No Mock Tests Available</string>
     <string name="mock_test_empty_message">No questions are currently available for this mock test configuration.</string>
     <string name="mock_test_error_title">Unable to Load Mock Test</string>
+    <string name="mock_test_insufficient_questions">Insufficient active questions available: requested %1$d, but only %2$d are available for this scope.</string>
 </resources>
