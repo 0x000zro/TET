@@ -52,8 +52,8 @@ open class TestEducationalRepository : EducationalRepository {
     override fun observeAllSyncStates(): Flow<List<ContentSyncState>> = flow { emit(emptyList()) }
     override fun observeSyncState(contentSource: String): Flow<ContentSyncState?> = flow { emit(null) }
     override suspend fun saveSyncState(syncState: ContentSyncState): Result<Unit> = Result.success(Unit)
-    override fun observeAllExams(): Flow<List<Exam>> = flow { emit(emptyList()) }
-    override fun observeActiveExams(): Flow<List<Exam>> = flow { emit(emptyList()) }
+    override fun observeAllExams(): Flow<List<Exam>> = flow { emit(examsMap.values.toList()) }
+    override fun observeActiveExams(): Flow<List<Exam>> = flow { emit(examsMap.values.filter { it.isActive }) }
     override fun observeExamById(id: String): Flow<Exam?> = flow { emit(examsMap[id]) }
     override suspend fun getExamById(id: String): Exam? = examsMap[id]
     override suspend fun saveExam(exam: Exam): Result<Unit> = Result.success(Unit)

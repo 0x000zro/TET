@@ -133,8 +133,13 @@ fun MainShellScreen(
                         )
                     }
 
+                    ShellDestination.MockTests -> {
+                        com.example.ui.feature.mocktest.MockTestScreen(
+                            onNavigateBack = { viewModel.navigateBack() }
+                        )
+                    }
+
                     ShellDestination.Practice,
-                    ShellDestination.MockTests,
                     ShellDestination.EBooks,
                     ShellDestination.Videos,
                     ShellDestination.ProfileSettings -> {

@@ -219,4 +219,42 @@
     <string name="pyq_year_label">Year</string>
     <string name="pyq_session_label">Session</string>
     <string name="pyq_status_label">Status</string>
+
+    <!-- Mock Test UI Strings (Step 17) -->
+    <string name="mock_test_title">Mock Test</string>
+    <string name="mock_test_subtitle">Simulate real exam experience with standardized question sets</string>
+    <string name="mock_test_start_button">Start Mock Test</string>
+    <string name="mock_test_summary_title">Test Overview</string>
+    <string name="mock_test_exam_label">Exam</string>
+    <string name="mock_test_paper_label">Paper</string>
+    <string name="mock_test_scope_label">Scope</string>
+    <string name="mock_test_questions_label">Total Questions</string>
+    <string name="mock_test_duration_label">Duration</string>
+    <string name="mock_test_duration_value">%1$d Minutes</string>
+    <string name="mock_test_instructions_title">Instructions</string>
+    <string name="mock_test_instruction_1">• Navigate between questions using Previous and Next controls.</string>
+    <string name="mock_test_instruction_2">• You may change or clear your answer selection at any time before finishing.</string>
+    <string name="mock_test_instruction_3">• Tap Finish Test when you are ready to submit your test for scoring.</string>
+    <string name="mock_test_progress_format">Question %1$d of %2$d</string>
+    <string name="mock_test_answered_status">%1$d Answered • %2$d Unanswered</string>
+    <string name="mock_test_action_prev">Previous</string>
+    <string name="mock_test_action_next">Next</string>
+    <string name="mock_test_action_clear">Clear Answer</string>
+    <string name="mock_test_action_finish">Finish Test</string>
+    <string name="mock_test_finish_dialog_title">Finish Mock Test?</string>
+    <string name="mock_test_finish_dialog_message">You have answered %1$d of %2$d questions. %3$d questions remain unanswered. Do you want to submit your test?</string>
+    <string name="mock_test_finish_dialog_confirm">Yes, Finish</string>
+    <string name="mock_test_finish_dialog_dismiss">Continue Test</string>
+    <string name="mock_test_result_title">Mock Test Result</string>
+    <string name="mock_test_result_subtitle">Performance Summary</string>
+    <string name="mock_test_result_score_label">Final Score</string>
+    <string name="mock_test_result_correct">%1$d Correct</string>
+    <string name="mock_test_result_incorrect">%1$d Incorrect</string>
+    <string name="mock_test_result_unanswered">%1$d Unanswered</string>
+    <string name="mock_test_result_total">%1$d Total Questions</string>
+    <string name="mock_test_action_restart">Take Another Test</string>
+    <string name="mock_test_action_done">Return to Home</string>
+    <string name="mock_test_empty_title">No Mock Tests Available</string>
+    <string name="mock_test_empty_message">No questions are currently available for this mock test configuration.</string>
+    <string name="mock_test_error_title">Unable to Load Mock Test</string>
 </resources>
