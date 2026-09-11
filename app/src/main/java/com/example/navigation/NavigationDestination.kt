@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayCircle
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.outlined.Assessment
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.PlayCircle
@@ -130,6 +132,14 @@ sealed class ShellDestination(
         titleResId = R.string.bookmarks_title,
         selectedIcon = Icons.Filled.Bookmark,
         unselectedIcon = Icons.Outlined.BookmarkBorder,
+        isPrimaryBottomNav = false
+    )
+
+    data object PreviousYearQuestions : ShellDestination(
+        route = "shell_pyq",
+        titleResId = R.string.nav_pyq,
+        selectedIcon = Icons.Filled.History,
+        unselectedIcon = Icons.Outlined.History,
         isPrimaryBottomNav = false
     )
 

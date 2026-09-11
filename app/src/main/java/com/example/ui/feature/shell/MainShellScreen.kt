@@ -127,6 +127,12 @@ fun MainShellScreen(
                         )
                     }
 
+                    ShellDestination.PreviousYearQuestions -> {
+                        com.example.ui.feature.pyq.PreviousYearQuestionsScreen(
+                            onNavigateBack = { viewModel.navigateBack() }
+                        )
+                    }
+
                     ShellDestination.Practice,
                     ShellDestination.MockTests,
                     ShellDestination.EBooks,

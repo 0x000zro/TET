@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayCircle
@@ -140,6 +141,17 @@ fun MoreTabContent(
                         tag = "Saved",
                         onClick = { onNavigateToDestination(ShellDestination.Bookmarks) },
                         testTag = "more_bookmarks_card"
+                    )
+                }
+
+                item {
+                    FeatureCard(
+                        title = stringResource(R.string.pyq_title),
+                        description = stringResource(R.string.pyq_subtitle),
+                        icon = Icons.Default.History,
+                        tag = "PYQ",
+                        onClick = { onNavigateToDestination(ShellDestination.PreviousYearQuestions) },
+                        testTag = "more_pyq_card"
                     )
                 }
 

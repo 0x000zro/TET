@@ -191,4 +191,32 @@
     <string name="bookmarks_empty_description">Tap the bookmark icon on any question to save it here for quick revision.</string>
     <string name="navigate_back">Navigate back</string>
     <string name="retry_button">Retry</string>
+
+    <!-- Previous Year Questions (PYQ) Foundation & Browsing (Step 15) -->
+    <string name="nav_pyq">Previous Year Questions</string>
+    <string name="pyq_title">Previous Year Questions</string>
+    <string name="pyq_subtitle">Browse and practice authenticated exam questions by year, paper, and session.</string>
+    <string name="pyq_filter_all_exams">All Exams</string>
+    <string name="pyq_filter_all_papers">All Papers</string>
+    <string name="pyq_filter_all_years">All Years</string>
+    <string name="pyq_filter_all_sessions">All Sessions</string>
+    <string name="pyq_filter_all_statuses">All Status</string>
+    <string name="pyq_filter_verified_only">Verified Only</string>
+    <string name="pyq_empty_title">No Previous Year Questions</string>
+    <string name="pyq_empty_desc">No previous year questions match the selected filter criteria.</string>
+    <string name="pyq_error_title">Unable to Load PYQs</string>
+    <string name="pyq_retry">Retry</string>
+    <string name="pyq_total_count">%1$d PYQ Questions</string>
+    <string name="pyq_year_session_format">%1$d • %2$s</string>
+    <string name="pyq_verified_badge">Verified</string>
+    <string name="pyq_unverified_badge">Unverified</string>
+    <string name="pyq_source_format">Source: %1$s</string>
+    <string name="pyq_review_title">PYQ Question Detail</string>
+    <string name="pyq_back_to_list">Back to PYQ List</string>
+    <string name="pyq_clear_filters">Clear Filters</string>
+    <string name="pyq_exam_label">Exam</string>
+    <string name="pyq_paper_label">Paper</string>
+    <string name="pyq_year_label">Year</string>
+    <string name="pyq_session_label">Session</string>
+    <string name="pyq_status_label">Status</string>
 </resources>

@@ -27,6 +27,11 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 open class TestEducationalRepository : EducationalRepository {
+    val examsMap = mutableMapOf<String, Exam>()
+    val papersMap = mutableMapOf<String, Paper>()
+    val subjectsMap = mutableMapOf<String, Subject>()
+    val topicsMap = mutableMapOf<String, Topic>()
+    val subtopicsMap = mutableMapOf<String, Subtopic>()
     val questionsMap = mutableMapOf<String, Question>()
     var shouldThrowOnQuestion = false
     val practiceAttempts = mutableListOf<PracticeAttempt>()
@@ -49,36 +54,36 @@ open class TestEducationalRepository : EducationalRepository {
     override suspend fun saveSyncState(syncState: ContentSyncState): Result<Unit> = Result.success(Unit)
     override fun observeAllExams(): Flow<List<Exam>> = flow { emit(emptyList()) }
     override fun observeActiveExams(): Flow<List<Exam>> = flow { emit(emptyList()) }
-    override fun observeExamById(id: String): Flow<Exam?> = flow { emit(null) }
-    override suspend fun getExamById(id: String): Exam? = null
+    override fun observeExamById(id: String): Flow<Exam?> = flow { emit(examsMap[id]) }
+    override suspend fun getExamById(id: String): Exam? = examsMap[id]
     override suspend fun saveExam(exam: Exam): Result<Unit> = Result.success(Unit)
     override suspend fun saveExams(exams: List<Exam>): Result<Unit> = Result.success(Unit)
     override suspend fun deleteExamById(id: String): Result<Unit> = Result.success(Unit)
-    override fun observePapersByExamId(examId: String): Flow<List<Paper>> = flow { emit(emptyList()) }
-    override fun observeActivePapersByExamId(examId: String): Flow<List<Paper>> = flow { emit(emptyList()) }
-    override fun observePaperById(id: String): Flow<Paper?> = flow { emit(null) }
-    override suspend fun getPaperById(id: String): Paper? = null
+    override fun observePapersByExamId(examId: String): Flow<List<Paper>> = flow { emit(papersMap.values.filter { it.examId == examId }) }
+    override fun observeActivePapersByExamId(examId: String): Flow<List<Paper>> = flow { emit(papersMap.values.filter { it.examId == examId && it.isActive }) }
+    override fun observePaperById(id: String): Flow<Paper?> = flow { emit(papersMap[id]) }
+    override suspend fun getPaperById(id: String): Paper? = papersMap[id]
     override suspend fun savePaper(paper: Paper): Result<Unit> = Result.success(Unit)
     override suspend fun savePapers(papers: List<Paper>): Result<Unit> = Result.success(Unit)
     override suspend fun deletePaperById(id: String): Result<Unit> = Result.success(Unit)
-    override fun observeSubjectsByPaperId(paperId: String): Flow<List<Subject>> = flow { emit(emptyList()) }
-    override fun observeActiveSubjectsByPaperId(paperId: String): Flow<List<Subject>> = flow { emit(emptyList()) }
-    override fun observeSubjectById(id: String): Flow<Subject?> = flow { emit(null) }
-    override suspend fun getSubjectById(id: String): Subject? = null
+    override fun observeSubjectsByPaperId(paperId: String): Flow<List<Subject>> = flow { emit(subjectsMap.values.filter { it.paperId == paperId }) }
+    override fun observeActiveSubjectsByPaperId(paperId: String): Flow<List<Subject>> = flow { emit(subjectsMap.values.filter { it.paperId == paperId && it.isActive }) }
+    override fun observeSubjectById(id: String): Flow<Subject?> = flow { emit(subjectsMap[id]) }
+    override suspend fun getSubjectById(id: String): Subject? = subjectsMap[id]
     override suspend fun saveSubject(subject: Subject): Result<Unit> = Result.success(Unit)
     override suspend fun saveSubjects(subjects: List<Subject>): Result<Unit> = Result.success(Unit)
     override suspend fun deleteSubjectById(id: String): Result<Unit> = Result.success(Unit)
-    override fun observeTopicsBySubjectId(subjectId: String): Flow<List<Topic>> = flow { emit(emptyList()) }
-    override fun observeActiveTopicsBySubjectId(subjectId: String): Flow<List<Topic>> = flow { emit(emptyList()) }
-    override fun observeTopicById(id: String): Flow<Topic?> = flow { emit(null) }
-    override suspend fun getTopicById(id: String): Topic? = null
+    override fun observeTopicsBySubjectId(subjectId: String): Flow<List<Topic>> = flow { emit(topicsMap.values.filter { it.subjectId == subjectId }) }
+    override fun observeActiveTopicsBySubjectId(subjectId: String): Flow<List<Topic>> = flow { emit(topicsMap.values.filter { it.subjectId == subjectId && it.isActive }) }
+    override fun observeTopicById(id: String): Flow<Topic?> = flow { emit(topicsMap[id]) }
+    override suspend fun getTopicById(id: String): Topic? = topicsMap[id]
     override suspend fun saveTopic(topic: Topic): Result<Unit> = Result.success(Unit)
     override suspend fun saveTopics(topics: List<Topic>): Result<Unit> = Result.success(Unit)
     override suspend fun deleteTopicById(id: String): Result<Unit> = Result.success(Unit)
-    override fun observeSubtopicsByTopicId(topicId: String): Flow<List<Subtopic>> = flow { emit(emptyList()) }
-    override fun observeActiveSubtopicsByTopicId(topicId: String): Flow<List<Subtopic>> = flow { emit(emptyList()) }
-    override fun observeSubtopicById(id: String): Flow<Subtopic?> = flow { emit(null) }
-    override suspend fun getSubtopicById(id: String): Subtopic? = null
+    override fun observeSubtopicsByTopicId(topicId: String): Flow<List<Subtopic>> = flow { emit(subtopicsMap.values.filter { it.topicId == topicId }) }
+    override fun observeActiveSubtopicsByTopicId(topicId: String): Flow<List<Subtopic>> = flow { emit(subtopicsMap.values.filter { it.topicId == topicId && it.isActive }) }
+    override fun observeSubtopicById(id: String): Flow<Subtopic?> = flow { emit(subtopicsMap[id]) }
+    override suspend fun getSubtopicById(id: String): Subtopic? = subtopicsMap[id]
     override suspend fun saveSubtopic(subtopic: Subtopic): Result<Unit> = Result.success(Unit)
     override suspend fun saveSubtopics(subtopics: List<Subtopic>): Result<Unit> = Result.success(Unit)
     override suspend fun deleteSubtopicById(id: String): Result<Unit> = Result.success(Unit)
