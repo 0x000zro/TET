@@ -144,12 +144,13 @@ sealed class ShellDestination(
     )
 
     companion object {
-        val primaryBottomNavDestinations: List<ShellDestination> = listOf(
-            Home,
-            Exams,
-            Practice,
-            MockTests,
-            More
-        )
+        val primaryBottomNavDestinations: List<ShellDestination>
+            get() = listOf(
+                Home,
+                Exams,
+                Practice,
+                MockTests,
+                More
+            )
     }
 }

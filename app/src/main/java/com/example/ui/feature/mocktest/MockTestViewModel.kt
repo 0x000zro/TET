@@ -13,18 +13,24 @@ import com.example.domain.usecase.mocktest.CreateMockTestSessionUseCase
 import com.example.domain.usecase.mocktest.FinishMockTestOutcome
 import com.example.domain.usecase.mocktest.FinishMockTestSessionUseCase
 import com.example.ui.feature.mocktest.model.toMockTestPresentationModel
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
- * ViewModel managing the Mock Test UI and lifecycle (Step 17).
+ * ViewModel managing the Mock Test UI, timer countdown, and lifecycle (Steps 17 & 18).
  *
  * Flow:
- * Configuration Overview -> Start Test -> Active Questions (Select, Navigate, Clear)
- * -> Finish Confirmation -> Result Summary
+ * Configuration Overview -> Start Test -> Active Questions + Countdown Timer
+ * -> Finish Confirmation / Time Expiry -> Result Summary
  *
  * Architecture:
  * UI -> MockTestViewModel -> UseCases -> EducationalRepository
@@ -33,11 +39,15 @@ import kotlinx.coroutines.launch
  * 1. Single source of truth: Questions are fetched canonically from [EducationalRepository].
  * 2. Immutable state machine: Delegates to [MockTestSession] and domain use cases.
  * 3. QuestionPresentationModel: Ensures correct answers are NOT exposed to the client during active test.
+ * 4. Timer safety: Started only when test becomes active, stopped on finish/abandon/lifecycle-clear,
+ *    and accurately calculated using wall-clock delta against target end time.
  */
 class MockTestViewModel(
     private val repository: EducationalRepository = EducationalRepositoryImpl(),
     private val createSessionUseCase: CreateMockTestSessionUseCase = CreateMockTestSessionUseCase(repository),
-    private val finishSessionUseCase: FinishMockTestSessionUseCase = FinishMockTestSessionUseCase(repository)
+    private val finishSessionUseCase: FinishMockTestSessionUseCase = FinishMockTestSessionUseCase(repository),
+    private val timeProvider: () -> Long = { System.currentTimeMillis() },
+    private val timerDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<MockTestUiState>(MockTestUiState.Loading)
@@ -47,10 +57,19 @@ class MockTestViewModel(
     private var activeSession: MockTestSession? = null
     private val loadedQuestionsCache = mutableMapOf<String, Question>()
 
+    private var timerJob: Job? = null
+    private var targetEndTimeMillis: Long = 0L
+    private var isFinishing: Boolean = false
+
+    val isTimerActive: Boolean
+        get() = timerJob?.isActive == true
+
     /**
      * Initializes the mock test with a given configuration or loads the default exam/paper configuration.
      */
     fun loadTestConfiguration(configuration: MockTestConfiguration? = null) {
+        stopTimer()
+        isFinishing = false
         _uiState.value = MockTestUiState.Loading
         viewModelScope.launch {
             try {
@@ -139,9 +158,10 @@ class MockTestViewModel(
                         _uiState.value = MockTestUiState.Error(outcome.errorMessage)
                     }
                     is CreateMockTestOutcome.Success -> {
-                        val session = outcome.session.start(System.currentTimeMillis())
+                        val session = outcome.session.start(timeProvider())
                         activeSession = session
                         loadedQuestionsCache.clear()
+                        isFinishing = false
 
                         // Preload questions into memory cache for quick navigation
                         for (qId in session.questionIds) {
@@ -151,6 +171,7 @@ class MockTestViewModel(
                             }
                         }
 
+                        startTimer(config.durationMinutes)
                         renderCurrentQuestion(session)
                     }
                 }
@@ -229,16 +250,36 @@ class MockTestViewModel(
     }
 
     /**
-     * Finalizes the mock test session and evaluates results against canonical questions.
+     * Finalizes the mock test session manually and evaluates results against canonical questions.
      */
     fun confirmFinish() {
         val session = activeSession ?: return
+        executeFinish(session)
+    }
+
+    /**
+     * Abandons the active mock test session, cancelling the timer and discarding the in-progress session.
+     */
+    fun abandonTest() {
+        stopTimer()
+        activeSession = null
+        isFinishing = false
+    }
+
+    /**
+     * Internal unified finish routine with duplicate execution guard.
+     */
+    private fun executeFinish(session: MockTestSession) {
+        if (session.isCompleted || isFinishing) return
+        isFinishing = true
+        stopTimer()
         _uiState.value = MockTestUiState.Loading
 
         viewModelScope.launch {
             try {
-                when (val outcome = finishSessionUseCase.execute(session, System.currentTimeMillis())) {
+                when (val outcome = finishSessionUseCase.execute(session, timeProvider())) {
                     is FinishMockTestOutcome.Failure -> {
+                        isFinishing = false
                         _uiState.value = MockTestUiState.Error(outcome.errorMessage)
                     }
                     is FinishMockTestOutcome.Success -> {
@@ -250,15 +291,89 @@ class MockTestViewModel(
                     }
                 }
             } catch (e: Exception) {
+                isFinishing = false
                 _uiState.value = MockTestUiState.Error(e.localizedMessage ?: "Failed to evaluate mock test.")
             }
         }
     }
 
     /**
+     * Starts the countdown timer based on the configuration's duration in minutes.
+     */
+    private fun startTimer(durationMinutes: Int) {
+        stopTimer()
+        val totalDurationSeconds = (durationMinutes * 60L).coerceAtLeast(0L)
+        val totalDurationMillis = totalDurationSeconds * 1000L
+        val startTimeMillis = timeProvider()
+        targetEndTimeMillis = startTimeMillis + totalDurationMillis
+
+        val initialRemaining = calculateRemainingSeconds(startTimeMillis)
+        updateRemainingTimeInState(initialRemaining)
+
+        if (totalDurationSeconds <= 0L) {
+            onTimerExpired()
+            return
+        }
+
+        timerJob = viewModelScope.launch(timerDispatcher) {
+            while (isActive) {
+                delay(1000L)
+                val current = timeProvider()
+                val remainingSeconds = calculateRemainingSeconds(current)
+                updateRemainingTimeInState(remainingSeconds)
+
+                if (remainingSeconds <= 0L) {
+                    onTimerExpired()
+                    break
+                }
+            }
+        }
+    }
+
+    /**
+     * Halts and clears any running timer job.
+     */
+    fun stopTimer() {
+        timerJob?.cancel()
+        timerJob = null
+    }
+
+    /**
+     * Computes remaining seconds using targetEndTimeMillis - currentTime to prevent tick distortion.
+     */
+    private fun calculateRemainingSeconds(currentTime: Long): Long {
+        if (targetEndTimeMillis <= 0L) return 0L
+        val remainingMillis = targetEndTimeMillis - currentTime
+        return if (remainingMillis <= 0L) 0L else (remainingMillis + 999L) / 1000L
+    }
+
+    /**
+     * Pushes the latest remaining time into the active UI state without altering dialog or question state.
+     */
+    private fun updateRemainingTimeInState(remainingSeconds: Long) {
+        val current = _uiState.value
+        if (current is MockTestUiState.ActiveTest) {
+            _uiState.value = current.copy(
+                remainingSeconds = remainingSeconds,
+                formattedRemainingTime = formatRemainingTime(remainingSeconds)
+            )
+        }
+    }
+
+    /**
+     * Triggered automatically when the countdown timer hits zero.
+     */
+    private fun onTimerExpired() {
+        val session = activeSession ?: return
+        executeFinish(session)
+    }
+
+    /**
      * Restarts the test with the same configuration.
      */
     fun restartTest() {
+        stopTimer()
+        isFinishing = false
         loadTestConfiguration(activeConfiguration)
     }
 
@@ -279,6 +394,11 @@ class MockTestViewModel(
             questionNumber = session.displayQuestionNumber
         )
 
+        val currentRemaining = calculateRemainingSeconds(timeProvider())
+        val currentState = _uiState.value
+        val showFinish = if (currentState is MockTestUiState.ActiveTest) currentState.showFinishConfirmation else false
+        val showAbandon = if (currentState is MockTestUiState.ActiveTest) currentState.showAbandonConfirmation else false
+
         _uiState.value = MockTestUiState.ActiveTest(
             session = session,
             currentQuestion = presentation,
@@ -290,9 +410,28 @@ class MockTestViewModel(
             hasPrevious = session.hasPreviousQuestion,
             hasNext = session.hasNextQuestion,
             isLastQuestion = session.isLastQuestion,
-            showFinishConfirmation = false,
-            showAbandonConfirmation = false
+            showFinishConfirmation = showFinish,
+            showAbandonConfirmation = showAbandon,
+            remainingSeconds = currentRemaining,
+            formattedRemainingTime = formatRemainingTime(currentRemaining)
         )
+    }
+
+    public override fun onCleared() {
+        super.onCleared()
+        stopTimer()
+    }
+
+    companion object {
+        /**
+         * Formats remaining duration into MM:SS.
+         */
+        fun formatRemainingTime(remainingSeconds: Long): String {
+            val clamped = remainingSeconds.coerceAtLeast(0L)
+            val minutes = clamped / 60
+            val seconds = clamped % 60
+            return String.format(Locale.ROOT, "%02d:%02d", minutes, seconds)
+        }
     }
 
     private suspend fun resolveDefaultConfiguration(): MockTestConfiguration? {

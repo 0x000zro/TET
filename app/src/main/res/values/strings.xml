@@ -237,6 +237,7 @@
     <string name="mock_test_instruction_3">• Tap Finish Test when you are ready to submit your test for scoring.</string>
     <string name="mock_test_progress_format">Question %1$d of %2$d</string>
     <string name="mock_test_answered_status">%1$d Answered • %2$d Unanswered</string>
+    <string name="mock_test_timer_description">Time Remaining</string>
     <string name="mock_test_action_prev">Previous</string>
     <string name="mock_test_action_next">Next</string>
     <string name="mock_test_action_clear">Clear Answer</string>

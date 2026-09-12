@@ -185,6 +185,7 @@ fun MockTestScreen(
                         onDismissFinish = { viewModel.setFinishConfirmationVisible(false) },
                         onConfirmAbandon = {
                             viewModel.setAbandonConfirmationVisible(false)
+                            viewModel.abandonTest()
                             onNavigateBack()
                         },
                         onDismissAbandon = { viewModel.setAbandonConfirmationVisible(false) }
@@ -530,21 +531,65 @@ private fun MockTestActiveView(
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    Surface(
-                        shape = RoundedCornerShape(dimensions.cornerPill),
-                        color = MaterialTheme.colorScheme.secondaryContainer
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(dimensions.spacingSmall),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = stringResource(
-                                R.string.mock_test_answered_status,
-                                state.answeredCount,
-                                state.unansweredCount
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
+                        // Countdown Timer Badge
+                        val isWarning = state.remainingSeconds in 1..60
+                        val isExpired = state.remainingSeconds <= 0
+                        val timerContainerColor = when {
+                            isExpired || isWarning -> MaterialTheme.colorScheme.errorContainer
+                            else -> MaterialTheme.colorScheme.primaryContainer
+                        }
+                        val timerContentColor = when {
+                            isExpired || isWarning -> MaterialTheme.colorScheme.onErrorContainer
+                            else -> MaterialTheme.colorScheme.onPrimaryContainer
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(dimensions.cornerPill),
+                            color = timerContainerColor,
+                            modifier = Modifier.testTag("mock_test_timer_badge")
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Timer,
+                                    contentDescription = stringResource(R.string.mock_test_timer_description),
+                                    tint = timerContentColor,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = state.formattedRemainingTime,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = timerContentColor,
+                                    modifier = Modifier.testTag("mock_test_timer_text")
+                                )
+                            }
+                        }
+
+                        // Answered Status Badge
+                        Surface(
+                            shape = RoundedCornerShape(dimensions.cornerPill),
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.mock_test_answered_status,
+                                    state.answeredCount,
+                                    state.unansweredCount
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
 

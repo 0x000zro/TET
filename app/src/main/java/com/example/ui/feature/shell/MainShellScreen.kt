@@ -53,7 +53,7 @@ fun MainShellScreen(
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = dimensions.elevationMedium
                 ) {
-                    ShellDestination.primaryBottomNavDestinations.forEach { destination ->
+                    ShellDestination.primaryBottomNavDestinations.filterNotNull().forEach { destination ->
                         val isSelected = uiState.currentDestination == destination
 
                         NavigationBarItem(

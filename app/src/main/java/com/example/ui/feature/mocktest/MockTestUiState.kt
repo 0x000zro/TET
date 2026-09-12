@@ -55,7 +55,9 @@ sealed interface MockTestUiState {
         val hasNext: Boolean,
         val isLastQuestion: Boolean,
         val showFinishConfirmation: Boolean = false,
-        val showAbandonConfirmation: Boolean = false
+        val showAbandonConfirmation: Boolean = false,
+        val remainingSeconds: Long = 0L,
+        val formattedRemainingTime: String = "00:00"
     ) : MockTestUiState
 
     /**
