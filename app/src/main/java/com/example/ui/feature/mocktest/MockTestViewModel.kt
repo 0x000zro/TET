@@ -7,6 +7,8 @@ import com.example.data.repository.InMemoryMockTestPerformanceRepository
 import com.example.domain.model.Question
 import com.example.domain.model.mocktest.MockTestConfiguration
 import com.example.domain.model.mocktest.MockTestPerformance
+import com.example.domain.model.mocktest.MockTestQuestionOutcomeStatus
+import com.example.domain.model.mocktest.MockTestResult
 import com.example.domain.model.mocktest.MockTestScope
 import com.example.domain.model.mocktest.MockTestSession
 import com.example.domain.repository.EducationalRepository
@@ -17,6 +19,8 @@ import com.example.domain.usecase.mocktest.FinishMockTestOutcome
 import com.example.domain.usecase.mocktest.FinishMockTestSessionUseCase
 import com.example.domain.usecase.mocktest.RecordMockTestPerformanceUseCase
 import com.example.ui.feature.mocktest.model.MockTestPaletteItem
+import com.example.ui.feature.mocktest.model.MockTestReviewOptionModel
+import com.example.ui.feature.mocktest.model.MockTestReviewQuestionModel
 import com.example.ui.feature.mocktest.model.toMockTestPresentationModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +69,12 @@ class MockTestViewModel(
     private var activeSession: MockTestSession? = null
     private val loadedQuestionsCache = mutableMapOf<String, Question>()
 
+    private var lastResult: MockTestResult? = null
+    private var lastPerformance: MockTestPerformance? = null
+    private var lastTimeUsedSeconds: Long = 0L
+    private var lastTimeRemainingSeconds: Long = 0L
+    private var cachedReviewQuestions: List<MockTestReviewQuestionModel>? = null
+
     private var timerJob: Job? = null
     private var targetEndTimeMillis: Long = 0L
     private var isFinishing: Boolean = false
@@ -84,6 +94,12 @@ class MockTestViewModel(
     fun loadTestConfiguration(configuration: MockTestConfiguration? = null) {
         stopTimer()
         isFinishing = false
+        activeSession = null
+        lastResult = null
+        lastPerformance = null
+        cachedReviewQuestions = null
+        lastTimeUsedSeconds = 0L
+        lastTimeRemainingSeconds = 0L
         _uiState.value = MockTestUiState.Loading
         viewModelScope.launch {
             try {
@@ -175,6 +191,11 @@ class MockTestViewModel(
                         val session = outcome.session.start(timeProvider())
                         activeSession = session
                         loadedQuestionsCache.clear()
+                        lastResult = null
+                        lastPerformance = null
+                        cachedReviewQuestions = null
+                        lastTimeUsedSeconds = 0L
+                        lastTimeRemainingSeconds = 0L
                         isFinishing = false
 
                         // Preload questions into memory cache for quick navigation
@@ -310,6 +331,11 @@ class MockTestViewModel(
     fun abandonTest() {
         stopTimer()
         activeSession = null
+        lastResult = null
+        lastPerformance = null
+        cachedReviewQuestions = null
+        lastTimeUsedSeconds = 0L
+        lastTimeRemainingSeconds = 0L
         isFinishing = false
     }
 
@@ -331,10 +357,12 @@ class MockTestViewModel(
                     }
                     is FinishMockTestOutcome.Success -> {
                         activeSession = outcome.finalSession
+                        lastResult = outcome.result
                         val recordedPerformance = recordPerformanceUseCase.execute(
                             session = outcome.finalSession,
                             result = outcome.result
                         )
+                        lastPerformance = recordedPerformance
                         val totalDurationSeconds = (session.configuration.durationMinutes * 60L).coerceAtLeast(0L)
                         val timeUsedSeconds = recordedPerformance?.timeUsedSeconds ?: if (outcome.result.finishedAt > outcome.result.startedAt && outcome.result.startedAt > 0L) {
                             ((outcome.result.finishedAt - outcome.result.startedAt) / 1000L).coerceAtLeast(0L)
@@ -342,6 +370,9 @@ class MockTestViewModel(
                         val timeRemainingSeconds = if (totalDurationSeconds > 0L) {
                             (totalDurationSeconds - timeUsedSeconds).coerceAtLeast(0L)
                         } else 0L
+                        lastTimeUsedSeconds = timeUsedSeconds
+                        lastTimeRemainingSeconds = timeRemainingSeconds
+                        cachedReviewQuestions = null
 
                         _uiState.value = MockTestUiState.ResultSummary(
                             result = outcome.result,
@@ -438,6 +469,11 @@ class MockTestViewModel(
         stopTimer()
         isFinishing = false
         activeSession = null
+        lastResult = null
+        lastPerformance = null
+        cachedReviewQuestions = null
+        lastTimeUsedSeconds = 0L
+        lastTimeRemainingSeconds = 0L
         if (activeConfiguration != null) {
             startTest()
         } else {
@@ -452,7 +488,168 @@ class MockTestViewModel(
         stopTimer()
         isFinishing = false
         activeSession = null
+        lastResult = null
+        lastPerformance = null
+        cachedReviewQuestions = null
+        lastTimeUsedSeconds = 0L
+        lastTimeRemainingSeconds = 0L
         loadTestConfiguration(activeConfiguration)
+    }
+
+    /**
+     * Opens the detailed question review for a completed test session (Step 22).
+     * Strictly fails/ignores if the session is not completed or was abandoned.
+     */
+    fun openQuestionReview(initialQuestionIndex: Int = 0) {
+        val session = activeSession ?: return
+        if (!session.isCompleted) return
+        val result = lastResult ?: return
+        val config = activeConfiguration ?: session.configuration
+
+        viewModelScope.launch {
+            val reviewQuestions = cachedReviewQuestions ?: buildReviewQuestions(session, result).also {
+                cachedReviewQuestions = it
+            }
+
+            if (reviewQuestions.isEmpty()) return@launch
+
+            val safeIndex = initialQuestionIndex.coerceIn(0, reviewQuestions.size - 1)
+            renderReviewState(safeIndex, reviewQuestions, result, config)
+        }
+    }
+
+    /**
+     * Navigates to the next question during question review.
+     */
+    fun nextReviewQuestion() {
+        val current = _uiState.value as? MockTestUiState.QuestionReview ?: return
+        if (current.hasNext) {
+            val nextIndex = current.currentQuestionIndex + 1
+            val result = lastResult ?: current.result
+            val config = activeConfiguration ?: current.configuration
+            renderReviewState(nextIndex, current.reviewQuestions, result, config)
+        }
+    }
+
+    /**
+     * Navigates to the previous question during question review.
+     */
+    fun previousReviewQuestion() {
+        val current = _uiState.value as? MockTestUiState.QuestionReview ?: return
+        if (current.hasPrevious) {
+            val prevIndex = current.currentQuestionIndex - 1
+            val result = lastResult ?: current.result
+            val config = activeConfiguration ?: current.configuration
+            renderReviewState(prevIndex, current.reviewQuestions, result, config)
+        }
+    }
+
+    /**
+     * Directly navigates to a question at the specified 0-based index during review.
+     */
+    fun navigateToReviewQuestion(index: Int) {
+        val current = _uiState.value as? MockTestUiState.QuestionReview ?: return
+        if (index in current.reviewQuestions.indices && index != current.currentQuestionIndex) {
+            val result = lastResult ?: current.result
+            val config = activeConfiguration ?: current.configuration
+            renderReviewState(index, current.reviewQuestions, result, config)
+        }
+    }
+
+    /**
+     * Returns from Question Review back to the Result Summary screen.
+     */
+    fun returnToResult() {
+        val result = lastResult ?: return
+        val config = activeConfiguration ?: return
+        _uiState.value = MockTestUiState.ResultSummary(
+            result = result,
+            configuration = config,
+            timeUsedSeconds = lastTimeUsedSeconds,
+            timeRemainingSeconds = lastTimeRemainingSeconds,
+            performance = lastPerformance
+        )
+    }
+
+    private fun renderReviewState(
+        currentIndex: Int,
+        reviewQuestions: List<MockTestReviewQuestionModel>,
+        result: MockTestResult,
+        config: MockTestConfiguration
+    ) {
+        val palette = reviewQuestions.mapIndexed { index, rq ->
+            MockTestPaletteItem(
+                index = index,
+                questionNumber = rq.questionNumber,
+                isCurrent = (index == currentIndex),
+                isAnswered = rq.selectedOptionId != null,
+                outcomeStatus = rq.status
+            )
+        }
+
+        _uiState.value = MockTestUiState.QuestionReview(
+            result = result,
+            configuration = config,
+            timeUsedSeconds = lastTimeUsedSeconds,
+            timeRemainingSeconds = lastTimeRemainingSeconds,
+            performance = lastPerformance,
+            currentQuestionIndex = currentIndex,
+            totalQuestions = reviewQuestions.size,
+            reviewQuestions = reviewQuestions,
+            paletteItems = palette
+        )
+    }
+
+    private suspend fun buildReviewQuestions(
+        session: MockTestSession,
+        result: MockTestResult
+    ): List<MockTestReviewQuestionModel> {
+        val outcomesMap = result.questionOutcomes.associateBy { it.questionId }
+
+        return session.questionIds.mapIndexed { index, qId ->
+            val question = loadedQuestionsCache[qId]
+                ?: repository.getQuestionById(qId)
+                ?: error("Question $qId not found")
+
+            loadedQuestionsCache[qId] = question
+
+            val selectedOptionId = session.selectedAnswers[qId]
+            val sortedOptions = question.options.sortedWith(compareBy({ it.sortOrder }, { it.id }))
+
+            val options = sortedOptions.mapIndexed { optIndex, opt ->
+                val label = ('A' + optIndex).toString()
+                MockTestReviewOptionModel(
+                    id = opt.id,
+                    label = label,
+                    text = opt.optionText,
+                    isCorrect = opt.isCorrect,
+                    isSelected = (opt.id == selectedOptionId)
+                )
+            }
+
+            val correctOption = options.firstOrNull { it.isCorrect }
+            val selectedOption = options.firstOrNull { it.isSelected }
+
+            val outcomeStatus = outcomesMap[qId]?.status ?: when {
+                selectedOptionId.isNullOrBlank() -> MockTestQuestionOutcomeStatus.UNANSWERED
+                selectedOption?.isCorrect == true -> MockTestQuestionOutcomeStatus.CORRECT
+                else -> MockTestQuestionOutcomeStatus.INCORRECT
+            }
+
+            MockTestReviewQuestionModel(
+                questionId = qId,
+                questionNumber = index + 1,
+                questionText = question.questionText,
+                difficulty = question.difficulty,
+                status = outcomeStatus,
+                selectedOptionId = selectedOptionId,
+                selectedOptionLabel = selectedOption?.label,
+                correctOptionId = correctOption?.id ?: "",
+                correctOptionLabel = correctOption?.label ?: "A",
+                options = options,
+                explanation = question.explanation
+            )
+        }
     }
 
     private fun renderCurrentQuestion(session: MockTestSession) {

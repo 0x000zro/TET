@@ -6,6 +6,7 @@ import com.example.domain.model.mocktest.MockTestResult
 import com.example.domain.model.mocktest.MockTestSession
 import com.example.ui.feature.mocktest.model.MockTestPaletteItem
 import com.example.ui.feature.mocktest.model.MockTestQuestionPresentationModel
+import com.example.ui.feature.mocktest.model.MockTestReviewQuestionModel
 
 /**
  * UI state hierarchy for the Mock Test feature (Step 17).
@@ -75,4 +76,27 @@ sealed interface MockTestUiState {
         val timeRemainingSeconds: Long = 0L,
         val performance: MockTestPerformance? = null
     ) : MockTestUiState
+
+    /**
+     * Post-test review state for examining questions, selected answers, and correct answers (Step 22).
+     * Strictly read-only; no timer runs in this state.
+     */
+    data class QuestionReview(
+        val result: MockTestResult,
+        val configuration: MockTestConfiguration,
+        val timeUsedSeconds: Long = 0L,
+        val timeRemainingSeconds: Long = 0L,
+        val performance: MockTestPerformance? = null,
+        val currentQuestionIndex: Int, // 0-based
+        val totalQuestions: Int,
+        val reviewQuestions: List<MockTestReviewQuestionModel>,
+        val paletteItems: List<MockTestPaletteItem> = emptyList()
+    ) : MockTestUiState {
+        val currentQuestion: MockTestReviewQuestionModel
+            get() = reviewQuestions.getOrElse(currentQuestionIndex) { reviewQuestions.first() }
+        val hasPrevious: Boolean get() = currentQuestionIndex > 0
+        val hasNext: Boolean get() = currentQuestionIndex < totalQuestions - 1
+        val isFirstQuestion: Boolean get() = currentQuestionIndex == 0
+        val isLastQuestion: Boolean get() = currentQuestionIndex == totalQuestions - 1
+    }
 }
