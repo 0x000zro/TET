@@ -3,15 +3,20 @@ package com.example.ui.feature.mocktest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.repository.EducationalRepositoryImpl
+import com.example.data.repository.InMemoryMockTestPerformanceRepository
 import com.example.domain.model.Question
 import com.example.domain.model.mocktest.MockTestConfiguration
+import com.example.domain.model.mocktest.MockTestPerformance
 import com.example.domain.model.mocktest.MockTestScope
 import com.example.domain.model.mocktest.MockTestSession
 import com.example.domain.repository.EducationalRepository
+import com.example.domain.repository.MockTestPerformanceRepository
 import com.example.domain.usecase.mocktest.CreateMockTestOutcome
 import com.example.domain.usecase.mocktest.CreateMockTestSessionUseCase
 import com.example.domain.usecase.mocktest.FinishMockTestOutcome
 import com.example.domain.usecase.mocktest.FinishMockTestSessionUseCase
+import com.example.domain.usecase.mocktest.RecordMockTestPerformanceUseCase
+import com.example.ui.feature.mocktest.model.MockTestPaletteItem
 import com.example.ui.feature.mocktest.model.toMockTestPresentationModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -26,14 +31,14 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
- * ViewModel managing the Mock Test UI, timer countdown, and lifecycle (Steps 17 & 18).
+ * ViewModel managing the Mock Test UI, timer countdown, and lifecycle (Steps 17, 18, 19, 20 & 21).
  *
  * Flow:
  * Configuration Overview -> Start Test -> Active Questions + Countdown Timer
  * -> Finish Confirmation / Time Expiry -> Result Summary
  *
  * Architecture:
- * UI -> MockTestViewModel -> UseCases -> EducationalRepository
+ * UI -> MockTestViewModel -> UseCases -> EducationalRepository & MockTestPerformanceRepository
  *
  * Guarantees:
  * 1. Single source of truth: Questions are fetched canonically from [EducationalRepository].
@@ -41,11 +46,14 @@ import java.util.Locale
  * 3. QuestionPresentationModel: Ensures correct answers are NOT exposed to the client during active test.
  * 4. Timer safety: Started only when test becomes active, stopped on finish/abandon/lifecycle-clear,
  *    and accurately calculated using wall-clock delta against target end time.
+ * 5. Isolated performance foundation: MockTestPerformance is stored in separate abstraction, never touching PracticeAttempt.
  */
 class MockTestViewModel(
     private val repository: EducationalRepository = EducationalRepositoryImpl(),
     private val createSessionUseCase: CreateMockTestSessionUseCase = CreateMockTestSessionUseCase(repository),
     private val finishSessionUseCase: FinishMockTestSessionUseCase = FinishMockTestSessionUseCase(repository),
+    private val performanceRepository: MockTestPerformanceRepository = InMemoryMockTestPerformanceRepository(),
+    private val recordPerformanceUseCase: RecordMockTestPerformanceUseCase = RecordMockTestPerformanceUseCase(performanceRepository),
     private val timeProvider: () -> Long = { System.currentTimeMillis() },
     private val timerDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
@@ -63,6 +71,12 @@ class MockTestViewModel(
 
     val isTimerActive: Boolean
         get() = timerJob?.isActive == true
+
+    /**
+     * Observable palette items for the active test session (Step 19).
+     */
+    val paletteItems: List<MockTestPaletteItem>
+        get() = (_uiState.value as? MockTestUiState.ActiveTest)?.paletteItems ?: emptyList()
 
     /**
      * Initializes the mock test with a given configuration or loads the default exam/paper configuration.
@@ -230,6 +244,39 @@ class MockTestViewModel(
     }
 
     /**
+     * Directly navigates to a question by its 0-based index in the session (Step 19).
+     *
+     * Guarantees:
+     * - Preserves previously selected answers across navigation.
+     * - Does NOT reset, pause, or alter the running countdown timer.
+     * - Synchronizes currentQuestionIndex, answeredCount, unansweredCount, and palette state.
+     */
+    fun navigateToQuestion(index: Int) {
+        val current = activeSession ?: return
+        if (!current.isStarted || current.isCompleted) return
+        if (index !in current.questionIds.indices) return
+        if (index == current.currentIndex) return
+
+        val updated = current.navigateToIndex(index)
+        activeSession = updated
+        renderCurrentQuestion(updated)
+    }
+
+    /**
+     * Directly navigates to a question by its 1-based question number (Step 19).
+     */
+    fun navigateToQuestionNumber(questionNumber: Int) {
+        navigateToQuestion(questionNumber - 1)
+    }
+
+    /**
+     * Alias for [navigateToQuestion] using 0-based index (Step 19).
+     */
+    fun navigateToQuestionIndex(index: Int) {
+        navigateToQuestion(index)
+    }
+
+    /**
      * Requests finish confirmation dialog to be shown or dismissed.
      */
     fun setFinishConfirmationVisible(visible: Boolean) {
@@ -284,9 +331,24 @@ class MockTestViewModel(
                     }
                     is FinishMockTestOutcome.Success -> {
                         activeSession = outcome.finalSession
+                        val recordedPerformance = recordPerformanceUseCase.execute(
+                            session = outcome.finalSession,
+                            result = outcome.result
+                        )
+                        val totalDurationSeconds = (session.configuration.durationMinutes * 60L).coerceAtLeast(0L)
+                        val timeUsedSeconds = recordedPerformance?.timeUsedSeconds ?: if (outcome.result.finishedAt > outcome.result.startedAt && outcome.result.startedAt > 0L) {
+                            ((outcome.result.finishedAt - outcome.result.startedAt) / 1000L).coerceAtLeast(0L)
+                        } else 0L
+                        val timeRemainingSeconds = if (totalDurationSeconds > 0L) {
+                            (totalDurationSeconds - timeUsedSeconds).coerceAtLeast(0L)
+                        } else 0L
+
                         _uiState.value = MockTestUiState.ResultSummary(
                             result = outcome.result,
-                            configuration = session.configuration
+                            configuration = session.configuration,
+                            timeUsedSeconds = timeUsedSeconds,
+                            timeRemainingSeconds = timeRemainingSeconds,
+                            performance = recordedPerformance
                         )
                     }
                 }
@@ -369,11 +431,27 @@ class MockTestViewModel(
     }
 
     /**
-     * Restarts the test with the same configuration.
+     * Restarts the test with the same configuration by instantiating a completely new session.
+     * Ensures previous completed session and result are never reused, and timer is fresh.
      */
     fun restartTest() {
         stopTimer()
         isFinishing = false
+        activeSession = null
+        if (activeConfiguration != null) {
+            startTest()
+        } else {
+            loadTestConfiguration()
+        }
+    }
+
+    /**
+     * Returns to the mock test configuration overview screen.
+     */
+    fun returnToOverview() {
+        stopTimer()
+        isFinishing = false
+        activeSession = null
         loadTestConfiguration(activeConfiguration)
     }
 
@@ -399,6 +477,15 @@ class MockTestViewModel(
         val showFinish = if (currentState is MockTestUiState.ActiveTest) currentState.showFinishConfirmation else false
         val showAbandon = if (currentState is MockTestUiState.ActiveTest) currentState.showAbandonConfirmation else false
 
+        val palette = session.questionIds.mapIndexed { index, questionId ->
+            MockTestPaletteItem(
+                index = index,
+                questionNumber = index + 1,
+                isCurrent = (index == session.currentIndex),
+                isAnswered = !session.selectedAnswers[questionId].isNullOrBlank()
+            )
+        }
+
         _uiState.value = MockTestUiState.ActiveTest(
             session = session,
             currentQuestion = presentation,
@@ -413,7 +500,8 @@ class MockTestViewModel(
             showFinishConfirmation = showFinish,
             showAbandonConfirmation = showAbandon,
             remainingSeconds = currentRemaining,
-            formattedRemainingTime = formatRemainingTime(currentRemaining)
+            formattedRemainingTime = formatRemainingTime(currentRemaining),
+            paletteItems = palette
         )
     }
 

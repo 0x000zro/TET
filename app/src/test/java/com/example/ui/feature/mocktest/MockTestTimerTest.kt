@@ -334,7 +334,7 @@ class MockTestTimerTest {
 
         assertTrue(viewModel.isTimerActive)
 
-        viewModel.restartTest()
+        viewModel.returnToOverview()
         testDispatcher.scheduler.runCurrent()
 
         assertTrue(viewModel.uiState.value is MockTestUiState.ConfigurationOverview)

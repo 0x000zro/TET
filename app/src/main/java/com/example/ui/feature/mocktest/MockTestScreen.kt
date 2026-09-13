@@ -2,10 +2,12 @@ package com.example.ui.feature.mocktest
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -16,6 +18,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +35,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -47,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -68,7 +75,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.R
 import com.example.domain.model.mocktest.MockTestConfiguration
+import com.example.domain.model.mocktest.MockTestPerformanceRating
+import com.example.domain.model.mocktest.MockTestQuestionOutcomeStatus
 import com.example.domain.model.mocktest.MockTestResult
+import com.example.ui.feature.mocktest.model.MockTestPaletteItem
 import com.example.ui.feature.question.components.DifficultyChip
 import com.example.ui.feature.question.components.QuestionEmptyView
 import com.example.ui.feature.question.components.QuestionErrorView
@@ -180,6 +190,7 @@ fun MockTestScreen(
                         onClearAnswer = { viewModel.clearAnswer() },
                         onPrevious = { viewModel.previousQuestion() },
                         onNext = { viewModel.nextQuestion() },
+                        onNavigateToQuestion = { index -> viewModel.navigateToQuestion(index) },
                         onRequestFinish = { viewModel.setFinishConfirmationVisible(true) },
                         onConfirmFinish = { viewModel.confirmFinish() },
                         onDismissFinish = { viewModel.setFinishConfirmationVisible(false) },
@@ -195,7 +206,10 @@ fun MockTestScreen(
                     MockTestResultView(
                         result = state.result,
                         configuration = state.configuration,
+                        timeUsedSeconds = state.timeUsedSeconds,
+                        timeRemainingSeconds = state.timeRemainingSeconds,
                         onRestart = { viewModel.restartTest() },
+                        onBackToOverview = { viewModel.returnToOverview() },
                         onDone = onNavigateBack
                     )
                 }
@@ -406,6 +420,7 @@ private fun MockTestActiveView(
     onClearAnswer: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onNavigateToQuestion: (Int) -> Unit = {},
     onRequestFinish: () -> Unit,
     onConfirmFinish: () -> Unit,
     onDismissFinish: () -> Unit,
@@ -454,23 +469,51 @@ private fun MockTestActiveView(
     }
 
     if (state.showFinishConfirmation) {
+        val hasUnanswered = state.unansweredCount > 0
         AlertDialog(
             onDismissRequest = onDismissFinish,
+            modifier = Modifier.testTag("mock_test_finish_dialog"),
             title = {
-                Text(
-                    text = stringResource(R.string.mock_test_finish_dialog_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (hasUnanswered) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Text(
+                        text = stringResource(
+                            if (hasUnanswered) {
+                                R.string.mock_test_finish_dialog_unanswered_title
+                            } else {
+                                R.string.mock_test_finish_dialog_title
+                            }
+                        ),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             },
             text = {
                 Text(
-                    text = stringResource(
-                        R.string.mock_test_finish_dialog_message,
-                        state.answeredCount,
-                        state.totalQuestions,
-                        state.unansweredCount
-                    ),
+                    text = if (hasUnanswered) {
+                        stringResource(
+                            R.string.mock_test_finish_dialog_unanswered_message,
+                            state.answeredCount,
+                            state.totalQuestions,
+                            state.unansweredCount
+                        )
+                    } else {
+                        stringResource(
+                            R.string.mock_test_finish_dialog_all_answered_message,
+                            state.totalQuestions
+                        )
+                    },
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
@@ -480,15 +523,15 @@ private fun MockTestActiveView(
                     modifier = Modifier.testTag("confirm_finish_button"),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text(stringResource(R.string.mock_test_finish_dialog_confirm))
+                    Text(stringResource(R.string.mock_test_action_finish_test))
                 }
             },
             dismissButton = {
-                TextButton(
+                OutlinedButton(
                     onClick = onDismissFinish,
                     modifier = Modifier.testTag("dismiss_finish_button")
                 ) {
-                    Text(stringResource(R.string.mock_test_finish_dialog_dismiss))
+                    Text(stringResource(R.string.mock_test_action_continue_review))
                 }
             }
         )
@@ -605,6 +648,21 @@ private fun MockTestActiveView(
                         .clip(RoundedCornerShape(dimensions.cornerPill))
                 )
             }
+
+            // Compact Status Summary (Step 20)
+            MockTestStatusSummary(
+                totalQuestions = state.totalQuestions,
+                answeredCount = state.answeredCount,
+                unansweredCount = state.unansweredCount,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Question Palette (Step 19)
+            MockTestQuestionPalette(
+                paletteItems = state.paletteItems,
+                onSelectQuestion = onNavigateToQuestion,
+                modifier = Modifier.fillMaxWidth()
+            )
 
             // Question Card
             Card(
@@ -839,11 +897,17 @@ private fun MockTestOptionCard(
 /**
  * Result Summary screen showing final performance score.
  */
+/**
+ * Result Summary screen showing final performance score, interpretation, timing, and question outcomes (Step 21).
+ */
 @Composable
 private fun MockTestResultView(
     result: MockTestResult,
     configuration: MockTestConfiguration,
+    timeUsedSeconds: Long,
+    timeRemainingSeconds: Long,
     onRestart: () -> Unit,
+    onBackToOverview: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -895,7 +959,7 @@ private fun MockTestResultView(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Primary Score Card
+            // Primary Score Card with Deterministic Interpretation
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -924,6 +988,110 @@ private fun MockTestResultView(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.testTag("mock_test_score_percentage")
                     )
+
+                    // Performance Interpretation (Deterministic)
+                    val ratingLabel = when (result.performanceRating) {
+                        MockTestPerformanceRating.EXCELLENT -> stringResource(R.string.mock_test_rating_excellent)
+                        MockTestPerformanceRating.GOOD -> stringResource(R.string.mock_test_rating_good)
+                        MockTestPerformanceRating.NEEDS_IMPROVEMENT -> stringResource(R.string.mock_test_rating_needs_improvement)
+                    }
+                    val ratingDesc = when (result.performanceRating) {
+                        MockTestPerformanceRating.EXCELLENT -> stringResource(R.string.mock_test_rating_excellent_desc)
+                        MockTestPerformanceRating.GOOD -> stringResource(R.string.mock_test_rating_good_desc)
+                        MockTestPerformanceRating.NEEDS_IMPROVEMENT -> stringResource(R.string.mock_test_rating_needs_improvement_desc)
+                    }
+                    val ratingColor = when (result.performanceRating) {
+                        MockTestPerformanceRating.EXCELLENT -> SuccessGreen
+                        MockTestPerformanceRating.GOOD -> MaterialTheme.colorScheme.primary
+                        MockTestPerformanceRating.NEEDS_IMPROVEMENT -> MaterialTheme.colorScheme.error
+                    }
+
+                    Surface(
+                        shape = CircleShape,
+                        color = ratingColor.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, ratingColor.copy(alpha = 0.4f)),
+                        modifier = Modifier.testTag("mock_test_performance_rating")
+                    ) {
+                        Text(
+                            text = ratingLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = ratingColor,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                    }
+
+                    Text(
+                        text = ratingDesc,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+
+            // Timing Card (Time Used & Time Remaining)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("mock_test_timing_card"),
+                shape = RoundedCornerShape(dimensions.cornerMedium),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(dimensions.spacingMedium),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("mock_test_metric_time_used")
+                    ) {
+                        Text(
+                            text = stringResource(R.string.mock_test_result_time_used),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = formatDuration(timeUsedSeconds),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    if (configuration.durationMinutes > 0) {
+                        VerticalDivider(
+                            modifier = Modifier.height(32.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("mock_test_metric_time_remaining")
+                        ) {
+                            Text(
+                                text = stringResource(R.string.mock_test_result_time_remaining),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = formatDuration(timeRemainingSeconds),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
                 }
             }
 
@@ -942,24 +1110,105 @@ private fun MockTestResultView(
                 ) {
                     ResultRow(
                         label = stringResource(R.string.mock_test_result_total, result.totalQuestions),
-                        badgeColor = MaterialTheme.colorScheme.primary
+                        badgeColor = MaterialTheme.colorScheme.primary,
+                        tag = "mock_test_metric_total"
                     )
                     ResultRow(
-                        label = stringResource(R.string.mock_test_result_correct, result.correctAnswers),
-                        badgeColor = SuccessGreen
-                    )
-                    ResultRow(
-                        label = stringResource(R.string.mock_test_result_incorrect, result.incorrectAnswers),
-                        badgeColor = MaterialTheme.colorScheme.error
+                        label = stringResource(R.string.mock_test_result_answered, result.answeredQuestions),
+                        badgeColor = MaterialTheme.colorScheme.secondary,
+                        tag = "mock_test_metric_answered"
                     )
                     ResultRow(
                         label = stringResource(R.string.mock_test_result_unanswered, result.unansweredQuestions),
-                        badgeColor = MaterialTheme.colorScheme.outline
+                        badgeColor = MaterialTheme.colorScheme.outline,
+                        tag = "mock_test_metric_unanswered"
+                    )
+                    ResultRow(
+                        label = stringResource(R.string.mock_test_result_correct, result.correctAnswers),
+                        badgeColor = SuccessGreen,
+                        tag = "mock_test_metric_correct"
+                    )
+                    ResultRow(
+                        label = stringResource(R.string.mock_test_result_incorrect, result.incorrectAnswers),
+                        badgeColor = MaterialTheme.colorScheme.error,
+                        tag = "mock_test_metric_incorrect"
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(dimensions.spacingMedium))
+            // Question Outcome Summary (Requirement 3)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("mock_test_outcome_summary"),
+                shape = RoundedCornerShape(dimensions.cornerMedium),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Column(
+                    modifier = Modifier.padding(dimensions.spacingMedium),
+                    verticalArrangement = Arrangement.spacedBy(dimensions.spacingSmall)
+                ) {
+                    Text(
+                        text = stringResource(R.string.mock_test_outcome_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    if (result.questionOutcomes.isNotEmpty()) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(result.questionOutcomes, key = { it.questionNumber }) { item ->
+                                val (statusText, badgeColor) = when (item.status) {
+                                    MockTestQuestionOutcomeStatus.CORRECT -> Pair(
+                                        stringResource(R.string.mock_test_outcome_correct_badge),
+                                        SuccessGreen
+                                    )
+                                    MockTestQuestionOutcomeStatus.INCORRECT -> Pair(
+                                        stringResource(R.string.mock_test_outcome_incorrect_badge),
+                                        MaterialTheme.colorScheme.error
+                                    )
+                                    MockTestQuestionOutcomeStatus.UNANSWERED -> Pair(
+                                        stringResource(R.string.mock_test_outcome_unanswered_badge),
+                                        MaterialTheme.colorScheme.outline
+                                    )
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(dimensions.cornerSmall),
+                                    color = badgeColor.copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.35f)),
+                                    modifier = Modifier.testTag("mock_test_outcome_item_${item.questionNumber}")
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                    ) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = badgeColor,
+                                            modifier = Modifier.size(8.dp)
+                                        ) {}
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Q${item.questionNumber}: $statusText",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(dimensions.spacingSmall))
 
             // CTA Actions
             Column(
@@ -982,6 +1231,20 @@ private fun MockTestResultView(
                 }
 
                 OutlinedButton(
+                    onClick = onBackToOverview,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = dimensions.minTouchTarget)
+                        .testTag("mock_test_back_to_overview_button"),
+                    shape = RoundedCornerShape(dimensions.cornerMedium)
+                ) {
+                    Text(
+                        text = stringResource(R.string.mock_test_action_back_to_overview),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+
+                OutlinedButton(
                     onClick = onDone,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1000,9 +1263,11 @@ private fun MockTestResultView(
 }
 
 @Composable
-private fun ResultRow(label: String, badgeColor: Color) {
+private fun ResultRow(label: String, badgeColor: Color, tag: String = "") {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (tag.isNotEmpty()) Modifier.testTag(tag) else Modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
@@ -1019,3 +1284,335 @@ private fun ResultRow(label: String, badgeColor: Color) {
         )
     }
 }
+
+private fun formatDuration(seconds: Long): String {
+    val mins = seconds / 60
+    val secs = seconds % 60
+    return String.format(Locale.US, "%02d:%02d", mins, secs)
+}
+
+/**
+ * Question Palette Composable (Step 19).
+ *
+ * Displays a compact, horizontally scrollable list of question numbers
+ * representing every question in the active mock test session.
+ *
+ * Distinguishes:
+ * - Current question: Primary colored highlight
+ * - Answered question: Distinct answered indicator
+ * - Unanswered question: Neutral outline
+ *
+ * Guarantees:
+ * - Does NOT display correct/incorrect state, answer keys, or explanations.
+ * - Selecting any question navigates directly to that question.
+ * - Auto-scrolls to keep the active question visible.
+ */
+@Composable
+private fun MockTestQuestionPalette(
+    paletteItems: List<MockTestPaletteItem>,
+    onSelectQuestion: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val dimensions = LocalDimensions.current
+    val listState = rememberLazyListState()
+
+    // Auto-scroll to ensure current question is visible
+    val currentIndex = paletteItems.indexOfFirst { it.isCurrent }
+    LaunchedEffect(currentIndex) {
+        if (currentIndex >= 0) {
+            listState.animateScrollToItem(currentIndex)
+        }
+    }
+
+    Card(
+        modifier = modifier.testTag("mock_test_question_palette"),
+        shape = RoundedCornerShape(dimensions.cornerMedium),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(dimensions.spacingSmall),
+            verticalArrangement = Arrangement.spacedBy(dimensions.spacingSmall)
+        ) {
+            // Palette Header: Title and Status Legend
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = dimensions.spacingSmall),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FormatListNumbered,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.mock_test_palette_title),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                // Legend: Current, Answered, Unanswered
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PaletteLegendItem(
+                        color = MaterialTheme.colorScheme.primary,
+                        label = stringResource(R.string.mock_test_palette_current)
+                    )
+                    PaletteLegendItem(
+                        color = SuccessGreen,
+                        label = stringResource(R.string.mock_test_palette_answered)
+                    )
+                    PaletteLegendItem(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        label = stringResource(R.string.mock_test_palette_unanswered)
+                    )
+                }
+            }
+
+            // Horizontally Scrollable Question Numbers
+            LazyRow(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("mock_test_palette_list"),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+            ) {
+                items(
+                    items = paletteItems,
+                    key = { it.questionNumber }
+                ) { item ->
+                    PaletteItemButton(
+                        item = item,
+                        onClick = { onSelectQuestion(item.index) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Compact legend dot and text for the question palette.
+ */
+@Composable
+private fun PaletteLegendItem(
+    color: Color,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * Palette question button with distinct states: Current, Answered, Unanswered.
+ */
+@Composable
+private fun PaletteItemButton(
+    item: MockTestPaletteItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val dimensions = LocalDimensions.current
+
+    // Determine state colors
+    val (containerColor, contentColor, borderColor) = when {
+        item.isCurrent -> {
+            Triple(
+                MaterialTheme.colorScheme.primary,
+                MaterialTheme.colorScheme.onPrimary,
+                MaterialTheme.colorScheme.primary
+            )
+        }
+        item.isAnswered -> {
+            Triple(
+                SuccessGreen.copy(alpha = 0.15f),
+                SuccessGreen,
+                SuccessGreen.copy(alpha = 0.6f)
+            )
+        }
+        else -> {
+            Triple(
+                MaterialTheme.colorScheme.surface,
+                MaterialTheme.colorScheme.onSurfaceVariant,
+                MaterialTheme.colorScheme.outlineVariant
+            )
+        }
+    }
+
+    val stateDesc = when {
+        item.isCurrent && item.isAnswered -> "current, answered"
+        item.isCurrent -> "current, unanswered"
+        item.isAnswered -> "answered"
+        else -> "unanswered"
+    }
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .size(38.dp)
+            .testTag("palette_item_${item.questionNumber}")
+            .semantics {
+                role = Role.Button
+                selected = item.isCurrent
+                contentDescription = "Question ${item.questionNumber}, $stateDesc"
+            },
+        shape = RoundedCornerShape(dimensions.cornerSmall),
+        color = containerColor,
+        contentColor = contentColor,
+        border = BorderStroke(
+            width = if (item.isCurrent) 2.dp else 1.dp,
+            color = borderColor
+        )
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Text(
+                text = "${item.questionNumber}",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (item.isCurrent) FontWeight.Bold else FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+
+            // Small dot indicator if current AND already answered
+            if (item.isCurrent && item.isAnswered) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 3.dp, end = 3.dp)
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onPrimary)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Compact status summary in Active Test UI (Step 20).
+ *
+ * Displays:
+ * - Total Questions
+ * - Answered
+ * - Unanswered
+ *
+ * Sourced directly from [MockTestUiState.ActiveTest] (single source of truth).
+ */
+@Composable
+private fun MockTestStatusSummary(
+    totalQuestions: Int,
+    answeredCount: Int,
+    unansweredCount: Int,
+    modifier: Modifier = Modifier
+) {
+    val dimensions = LocalDimensions.current
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("mock_test_status_summary"),
+        shape = RoundedCornerShape(dimensions.cornerMedium),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = dimensions.spacingMedium, vertical = dimensions.spacingSmall),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StatusSummaryMetric(
+                label = stringResource(R.string.mock_test_stat_label_total),
+                value = "$totalQuestions",
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                testTag = "mock_test_stat_total"
+            )
+
+            VerticalDivider(
+                modifier = Modifier.height(24.dp),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            StatusSummaryMetric(
+                label = stringResource(R.string.mock_test_stat_label_answered),
+                value = "$answeredCount",
+                contentColor = SuccessGreen,
+                testTag = "mock_test_stat_answered"
+            )
+
+            VerticalDivider(
+                modifier = Modifier.height(24.dp),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            StatusSummaryMetric(
+                label = stringResource(R.string.mock_test_stat_label_unanswered),
+                value = "$unansweredCount",
+                contentColor = if (unansweredCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline,
+                testTag = "mock_test_stat_unanswered"
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusSummaryMetric(
+    label: String,
+    value: String,
+    contentColor: Color,
+    testTag: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.testTag(testTag),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = contentColor
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+

@@ -26,7 +26,9 @@ data class MockTestResult(
     val unansweredQuestions: Int,
     val scorePercentage: Double,
     val startedAt: Long = 0L,
-    val finishedAt: Long = 0L
+    val finishedAt: Long = 0L,
+    val questionOutcomes: List<MockTestQuestionOutcome> = emptyList(),
+    val performanceRating: MockTestPerformanceRating = MockTestPerformanceRating.fromPercentage(scorePercentage)
 ) {
     companion object {
         /**
@@ -38,7 +40,8 @@ data class MockTestResult(
             answeredQuestions: Int,
             correctAnswers: Int,
             startedAt: Long = 0L,
-            finishedAt: Long = 0L
+            finishedAt: Long = 0L,
+            questionOutcomes: List<MockTestQuestionOutcome> = emptyList()
         ): MockTestResult {
             val safeTotal = totalQuestions.coerceAtLeast(0)
             val safeAnswered = answeredQuestions.coerceAtLeast(0).coerceAtMost(safeTotal)
@@ -60,7 +63,9 @@ data class MockTestResult(
                 unansweredQuestions = unanswered,
                 scorePercentage = percentage,
                 startedAt = startedAt,
-                finishedAt = finishedAt
+                finishedAt = finishedAt,
+                questionOutcomes = questionOutcomes,
+                performanceRating = MockTestPerformanceRating.fromPercentage(percentage)
             )
         }
     }

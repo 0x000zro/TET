@@ -156,16 +156,25 @@ data class MockTestSession(
     fun calculateResult(canonicalQuestions: List<Question>): MockTestResult {
         val questionsMap = canonicalQuestions.associateBy { it.id }
         var correctCount = 0
+        val outcomes = mutableListOf<MockTestQuestionOutcome>()
 
-        for (qId in questionIds) {
+        for ((index, qId) in questionIds.withIndex()) {
             val selectedOptionId = selectedAnswers[qId]
-            if (!selectedOptionId.isNullOrBlank()) {
-                val question = questionsMap[qId]
-                val isCorrect = question?.options?.any { it.id == selectedOptionId && it.isCorrect } == true
-                if (isCorrect) {
+            val status = when {
+                selectedOptionId.isNullOrBlank() -> MockTestQuestionOutcomeStatus.UNANSWERED
+                questionsMap[qId]?.options?.any { it.id == selectedOptionId && it.isCorrect } == true -> {
                     correctCount++
+                    MockTestQuestionOutcomeStatus.CORRECT
                 }
+                else -> MockTestQuestionOutcomeStatus.INCORRECT
             }
+            outcomes.add(
+                MockTestQuestionOutcome(
+                    questionNumber = index + 1,
+                    questionId = qId,
+                    status = status
+                )
+            )
         }
 
         return MockTestResult.from(
@@ -174,7 +183,8 @@ data class MockTestSession(
             answeredQuestions = answeredCount,
             correctAnswers = correctCount,
             startedAt = startedAt,
-            finishedAt = finishedAt
+            finishedAt = finishedAt,
+            questionOutcomes = outcomes
         )
     }
 }

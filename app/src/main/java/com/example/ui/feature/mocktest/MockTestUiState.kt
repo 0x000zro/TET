@@ -1,8 +1,10 @@
 package com.example.ui.feature.mocktest
 
 import com.example.domain.model.mocktest.MockTestConfiguration
+import com.example.domain.model.mocktest.MockTestPerformance
 import com.example.domain.model.mocktest.MockTestResult
 import com.example.domain.model.mocktest.MockTestSession
+import com.example.ui.feature.mocktest.model.MockTestPaletteItem
 import com.example.ui.feature.mocktest.model.MockTestQuestionPresentationModel
 
 /**
@@ -57,14 +59,20 @@ sealed interface MockTestUiState {
         val showFinishConfirmation: Boolean = false,
         val showAbandonConfirmation: Boolean = false,
         val remainingSeconds: Long = 0L,
-        val formattedRemainingTime: String = "00:00"
-    ) : MockTestUiState
+        val formattedRemainingTime: String = "00:00",
+        val paletteItems: List<MockTestPaletteItem> = emptyList()
+    ) : MockTestUiState {
+        val palette: List<MockTestPaletteItem> get() = paletteItems
+    }
 
     /**
-     * Final completed state displaying the immutable test result.
+     * Final completed state displaying the immutable test result and performance summary (Step 21).
      */
     data class ResultSummary(
         val result: MockTestResult,
-        val configuration: MockTestConfiguration
+        val configuration: MockTestConfiguration,
+        val timeUsedSeconds: Long = 0L,
+        val timeRemainingSeconds: Long = 0L,
+        val performance: MockTestPerformance? = null
     ) : MockTestUiState
 }
