@@ -1,5 +1,8 @@
 package com.learningblueprint.core.model
 
+import org.json.JSONArray
+import org.json.JSONObject
+
 enum class ExamPaper(val label: String, val subtitle: String) {
     PAPER_1("पेपर 1 (प्राथमिक)", "कक्षा 1 से 5 हेतु"),
     PAPER_2("पेपर 2 (उच्च प्राथमिक)", "कक्षा 6 से 8 हेतु"),
@@ -14,13 +17,61 @@ data class Exam(
     val stateAuthority: String,
     val badgeText: String,
     val isHot: Boolean = false,
+    val isPublished: Boolean = true,
     val availablePapers: List<ExamPaper> = listOf(ExamPaper.PAPER_1, ExamPaper.PAPER_2, ExamPaper.BOTH),
     val totalSubjects: Int,
     val totalQuestions: Int = 150,
     val totalMarks: Int = 150,
     val durationMinutes: Int = 150
 ) {
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("id", id)
+        put("code", code)
+        put("titleHindi", titleHindi)
+        put("titleEnglish", titleEnglish)
+        put("stateAuthority", stateAuthority)
+        put("badgeText", badgeText)
+        put("isHot", isHot)
+        put("isPublished", isPublished)
+        val papersArr = JSONArray()
+        availablePapers.forEach { papersArr.put(it.name) }
+        put("availablePapers", papersArr)
+        put("totalSubjects", totalSubjects)
+        put("totalQuestions", totalQuestions)
+        put("totalMarks", totalMarks)
+        put("durationMinutes", durationMinutes)
+    }
+
     companion object {
+        fun fromJson(obj: JSONObject): Exam {
+            val papersList = mutableListOf<ExamPaper>()
+            val papersArr = obj.optJSONArray("availablePapers")
+            if (papersArr != null && papersArr.length() > 0) {
+                for (i in 0 until papersArr.length()) {
+                    try {
+                        papersList.add(ExamPaper.valueOf(papersArr.getString(i)))
+                    } catch (_: Exception) {}
+                }
+            }
+            val papers = if (papersList.isNotEmpty()) papersList else listOf(ExamPaper.PAPER_1, ExamPaper.PAPER_2, ExamPaper.BOTH)
+
+            return Exam(
+                id = obj.getString("id"),
+                code = obj.getString("code"),
+                titleHindi = obj.getString("titleHindi"),
+                titleEnglish = obj.optString("titleEnglish", ""),
+                stateAuthority = obj.optString("stateAuthority", ""),
+                badgeText = obj.optString("badgeText", ""),
+                isHot = obj.optBoolean("isHot", false),
+                isPublished = obj.optBoolean("isPublished", true),
+                availablePapers = papers,
+                totalSubjects = obj.optInt("totalSubjects", 5),
+                totalQuestions = obj.optInt("totalQuestions", 150),
+                totalMarks = obj.optInt("totalMarks", 150),
+                durationMinutes = obj.optInt("durationMinutes", 150)
+            )
+        }
+
         val ALL_EXAMS: List<Exam> = listOf(
             Exam(
                 id = "ctet",
@@ -30,6 +81,7 @@ data class Exam(
                 stateAuthority = "CBSE • अखिल भारतीय",
                 badgeText = "★ सत्र 2026 लाइव",
                 isHot = true,
+                isPublished = true,
                 totalSubjects = 5,
                 totalQuestions = 150,
                 totalMarks = 150,
@@ -43,6 +95,7 @@ data class Exam(
                 stateAuthority = "UP DElEd • उत्तर प्रदेश",
                 badgeText = "नया पाठ्यक्रम",
                 isHot = true,
+                isPublished = true,
                 totalSubjects = 5,
                 totalQuestions = 150,
                 totalMarks = 150,
@@ -56,6 +109,7 @@ data class Exam(
                 stateAuthority = "UP Basic Education Board",
                 badgeText = "भर्ती परीक्षा",
                 isHot = false,
+                isPublished = true,
                 totalSubjects = 14,
                 totalQuestions = 150,
                 totalMarks = 150,
@@ -69,6 +123,7 @@ data class Exam(
                 stateAuthority = "RBSE • राजस्थान",
                 badgeText = "लेवल 1 व 2",
                 isHot = false,
+                isPublished = true,
                 totalSubjects = 5,
                 totalQuestions = 150,
                 totalMarks = 150,
@@ -82,6 +137,7 @@ data class Exam(
                 stateAuthority = "MP PEB • मध्य प्रदेश",
                 badgeText = "वर्ग 3",
                 isHot = false,
+                isPublished = true,
                 totalSubjects = 5,
                 totalQuestions = 150,
                 totalMarks = 150,
@@ -95,6 +151,7 @@ data class Exam(
                 stateAuthority = "BSEB • बिहार",
                 badgeText = "माध्यमिक स्तर",
                 isHot = false,
+                isPublished = true,
                 totalSubjects = 5,
                 totalQuestions = 150,
                 totalMarks = 150,

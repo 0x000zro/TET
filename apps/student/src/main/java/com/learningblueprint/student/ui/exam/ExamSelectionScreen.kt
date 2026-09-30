@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -27,17 +28,28 @@ import androidx.compose.ui.unit.sp
 import com.learningblueprint.core.model.Exam
 import com.learningblueprint.core.model.ExamPaper
 import com.learningblueprint.core.theme.*
+import com.learningblueprint.student.sync.StudentSyncManager
 
 @Composable
 fun ExamSelectionScreen(
     onBackClick: () -> Unit,
     onExamSelected: (Exam, ExamPaper) -> Unit
 ) {
-    var selectedExamId by remember { mutableStateOf("ctet") }
+    val context = LocalContext.current
+
+    // Dynamically retrieve published exams from synced cache (with fallback to default catalogue)
+    val availableExams = remember {
+        val cached = StudentSyncManager.getCachedConfig(context).exams.filter { it.isPublished }
+        if (cached.isNotEmpty()) cached else Exam.ALL_EXAMS
+    }
+
+    var selectedExamId by remember(availableExams) {
+        mutableStateOf(availableExams.firstOrNull()?.id ?: "ctet")
+    }
     var selectedPaper by remember { mutableStateOf(ExamPaper.BOTH) }
 
-    val currentExam = remember(selectedExamId) {
-        Exam.ALL_EXAMS.firstOrNull { it.id == selectedExamId } ?: Exam.ALL_EXAMS.first()
+    val currentExam = remember(selectedExamId, availableExams) {
+        availableExams.firstOrNull { it.id == selectedExamId } ?: availableExams.first()
     }
 
     Box(
@@ -117,7 +129,7 @@ fun ExamSelectionScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "उपलब्ध शिक्षक पात्रता परीक्षाएं:",
+                            text = "उपलब्ध शिक्षक पात्रता परीक्षाएं (${availableExams.size}):",
                             color = Color(0xFF8FC3B4),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
@@ -131,7 +143,7 @@ fun ExamSelectionScreen(
                     }
                 }
 
-                items(Exam.ALL_EXAMS, key = { it.id }) { exam ->
+                items(availableExams, key = { it.id }) { exam ->
                     val isSelected = exam.id == selectedExamId
                     ExamCard(
                         exam = exam,
@@ -142,7 +154,7 @@ fun ExamSelectionScreen(
 
                 item {
                     Spacer(modifier = Modifier.height(10.dp))
-                    
+
                     // Paper Level Selector Card
                     Surface(
                         shape = RoundedCornerShape(16.dp),

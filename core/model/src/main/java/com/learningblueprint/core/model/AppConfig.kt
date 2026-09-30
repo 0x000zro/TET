@@ -65,11 +65,13 @@ data class AppConfig(
     val tickerAnnouncement: Announcement,
     val announcements: List<Announcement>,
     val socialLinks: List<SocialLink>,
+    val exams: List<Exam> = Exam.ALL_EXAMS,
     val appVersionText: String = "v4.0 • PRODUCTION BUILD",
     val lastSyncTime: Long = System.currentTimeMillis()
 ) {
     fun toJsonString(): String {
         val root = JSONObject()
+        
         val noticeArray = JSONArray()
         announcements.forEach { noticeArray.put(it.toJson()) }
         root.put("announcements", noticeArray)
@@ -77,6 +79,10 @@ data class AppConfig(
         val socialArray = JSONArray()
         socialLinks.forEach { socialArray.put(it.toJson()) }
         root.put("socialLinks", socialArray)
+
+        val examArray = JSONArray()
+        exams.forEach { examArray.put(it.toJson()) }
+        root.put("exams", examArray)
 
         root.put("appVersionText", appVersionText)
         root.put("lastSyncTime", lastSyncTime)
@@ -128,7 +134,8 @@ data class AppConfig(
                 SocialLink("X", "X", "https://x.com", 0xFFE2E8F0),
                 SocialLink("FB", "Facebook", "https://facebook.com", 0xFF4267B2),
                 SocialLink("IG", "Instagram", "https://instagram.com", 0xFFE1306C)
-            )
+            ),
+            exams = Exam.ALL_EXAMS
         )
 
         fun fromJsonString(jsonString: String): AppConfig? {
@@ -150,6 +157,14 @@ data class AppConfig(
                     }
                 }
 
+                val examList = mutableListOf<Exam>()
+                val examArr = root.optJSONArray("exams")
+                if (examArr != null) {
+                    for (i in 0 until examArr.length()) {
+                        examList.add(Exam.fromJson(examArr.getJSONObject(i)))
+                    }
+                }
+
                 val liveNotices = noticeList.filter { it.isPublished }
                 val ticker = liveNotices.firstOrNull() ?: DEFAULT.tickerAnnouncement
 
@@ -157,6 +172,7 @@ data class AppConfig(
                     tickerAnnouncement = ticker,
                     announcements = if (liveNotices.isNotEmpty()) liveNotices else DEFAULT.announcements,
                     socialLinks = if (socialList.isNotEmpty()) socialList else DEFAULT.socialLinks,
+                    exams = if (examList.isNotEmpty()) examList else DEFAULT.exams,
                     appVersionText = root.optString("appVersionText", DEFAULT.appVersionText),
                     lastSyncTime = root.optLong("lastSyncTime", System.currentTimeMillis())
                 )

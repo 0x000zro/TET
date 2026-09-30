@@ -24,12 +24,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.learningblueprint.admin.sync.AdminRemoteSyncManager
 import com.learningblueprint.core.model.Announcement
 import com.learningblueprint.core.model.AppConfig
+import com.learningblueprint.core.model.Exam
 import com.learningblueprint.core.model.SocialLink
 import com.learningblueprint.core.theme.*
 import kotlinx.coroutines.launch
@@ -42,10 +44,12 @@ fun AdminDashboardScreen() {
 
     var announcements by remember { mutableStateOf(AppConfig.DEFAULT.announcements) }
     var socialLinks by remember { mutableStateOf(AppConfig.DEFAULT.socialLinks) }
+    var exams by remember { mutableStateOf(AppConfig.DEFAULT.exams) }
     var isPublishing by remember { mutableStateOf(false) }
 
     var showAddNoticeDialog by remember { mutableStateOf(false) }
     var editingSocialLink by remember { mutableStateOf<SocialLink?>(null) }
+    var editingExam by remember { mutableStateOf<Exam?>(null) }
     var showCloudSettingsDialog by remember { mutableStateOf(false) }
     var gitHubConfig by remember { mutableStateOf(AdminRemoteSyncManager.getGitHubConfig(context)) }
 
@@ -58,6 +62,7 @@ fun AdminDashboardScreen() {
                 tickerAnnouncement = ticker,
                 announcements = announcements,
                 socialLinks = socialLinks,
+                exams = exams,
                 lastSyncTime = System.currentTimeMillis()
             )
 
@@ -83,7 +88,7 @@ fun AdminDashboardScreen() {
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            // Header Row (Immersive & Regal)
+            // ================= HEADER ROW =================
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -137,7 +142,7 @@ fun AdminDashboardScreen() {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Tab Navigation
+            // ================= 4-TAB NAVIGATION BAR =================
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -146,7 +151,7 @@ fun AdminDashboardScreen() {
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                listOf("🔔 सूचनाएं", "🌐 सोशल लिंक्स", "📱 रिमोट सिंक").forEachIndexed { index, title ->
+                listOf("🔔 सूचना", "🌐 लिंक्स", "📚 परीक्षा", "📱 सिंक").forEachIndexed { index, title ->
                     val isSelected = selectedTab == index
                     Box(
                         modifier = Modifier
@@ -160,7 +165,7 @@ fun AdminDashboardScreen() {
                         Text(
                             text = title,
                             color = if (isSelected) DeepGreenDark else PaperLight,
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
                         )
                     }
@@ -254,7 +259,7 @@ fun AdminDashboardScreen() {
                 }
 
                 1 -> {
-                    // TAB 2: SOCIAL MEDIA MANAGER (WITH RESTORED EDIT FUNCTIONALITY & BRAND ICONS)
+                    // TAB 2: SOCIAL LINKS
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -289,7 +294,6 @@ fun AdminDashboardScreen() {
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        // Official Vector Brand Icon
                                         SocialBrandIcon(platform = link.platform, sizeDp = 42.dp)
 
                                         Column(modifier = Modifier.weight(1f)) {
@@ -309,7 +313,6 @@ fun AdminDashboardScreen() {
                                     }
 
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        // Restored EDIT Button
                                         Button(
                                             onClick = { editingSocialLink = link },
                                             colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
@@ -339,7 +342,167 @@ fun AdminDashboardScreen() {
                 }
 
                 2 -> {
-                    // TAB 3: REMOTE SYNC STATUS
+                    // TAB 3: EXAM MANAGEMENT (SCREEN 2 ADMIN CONTROLS)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "शिक्षक पात्रता परीक्षा प्रबंधन (${exams.size})",
+                                color = PaperLight,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "छात्र ऐप में परीक्षा लाइव करने या छिपाने हेतु टॉगल करें",
+                                color = Color(0xFF8FC3B4),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(exams, key = { it.id }) { exam ->
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (exam.isPublished) Color(0x22FFFFFF) else Color(0x10FFFFFF),
+                                border = BorderStroke(
+                                    1.2.dp,
+                                    if (exam.isPublished) SaffronYellow.copy(alpha = 0.5f) else Color(0x22FFFFFF)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = if (exam.isPublished) SaffronYellow else Color(0x33FFFFFF)
+                                            ) {
+                                                Text(
+                                                    text = exam.code,
+                                                    color = if (exam.isPublished) DeepGreenDark else PaperLight,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+
+                                            Text(
+                                                text = if (exam.isPublished) "✓ लाइव (Active)" else "✗ बंद (Hidden)",
+                                                color = if (exam.isPublished) Color(0xFF1C9E5F) else Color(0xFFDD4F3A),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Button(
+                                                onClick = { editingExam = exam },
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = SaffronYellow,
+                                                    contentColor = DeepGreenDark
+                                                ),
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                modifier = Modifier.height(30.dp)
+                                            ) {
+                                                Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(12.dp))
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                                Text("संपादित", fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                            }
+
+                                            Switch(
+                                                checked = exam.isPublished,
+                                                onCheckedChange = { isChecked ->
+                                                    exams = exams.map {
+                                                        if (it.id == exam.id) it.copy(isPublished = isChecked) else it
+                                                    }
+                                                },
+                                                colors = SwitchDefaults.colors(checkedThumbColor = SaffronYellow)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Text(
+                                        text = exam.titleHindi,
+                                        color = PaperLight,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    Text(
+                                        text = exam.stateAuthority,
+                                        color = Color(0xFF8FC3B4),
+                                        fontSize = 11.sp
+                                    )
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(99.dp),
+                                            color = if (exam.isHot) VermilionRed.copy(alpha = 0.25f) else Color(0x20FFFFFF),
+                                            border = BorderStroke(0.8.dp, if (exam.isHot) VermilionRed else Color(0x33FFFFFF))
+                                        ) {
+                                            Text(
+                                                text = exam.badgeText,
+                                                color = if (exam.isHot) Color(0xFFFF8B80) else Color(0xFFB5C9C0),
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                            )
+                                        }
+
+                                        Text(
+                                            text = "हॉट बैज:",
+                                            color = Color(0xFF8FC3B4),
+                                            fontSize = 10.5.sp
+                                        )
+
+                                        Switch(
+                                            checked = exam.isHot,
+                                            onCheckedChange = { isHotChecked ->
+                                                exams = exams.map {
+                                                    if (it.id == exam.id) it.copy(isHot = isHotChecked) else it
+                                                }
+                                            },
+                                            colors = SwitchDefaults.colors(checkedThumbColor = VermilionRed),
+                                            modifier = Modifier.height(24.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                3 -> {
+                    // TAB 4: REMOTE SYNC STATUS
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = Color(0x20FFFFFF),
@@ -350,7 +513,7 @@ fun AdminDashboardScreen() {
                             Text(text = "🌐 क्रॉस-डिवाइस रिमोट सिंक स्थिति", color = SaffronYellow, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "अब आप किसी भी दूसरे फोन पर मौजूद स्टूडेंट ऐप में सीधे नोटिफिकेशन भेज सकते हैं।",
+                                text = "अब आप किसी भी दूसरे फोन पर मौजूद स्टूडेंट ऐप में सीधे परीक्षा, नोटिस व सोशल लिंक भेज सकते हैं।",
                                 color = Color(0xFFCFE0D7),
                                 fontSize = 12.sp,
                                 lineHeight = 18.sp
@@ -372,6 +535,92 @@ fun AdminDashboardScreen() {
                             ) {
                                 Text("क्लाउड / GitHub सेटिंग्स बदलें", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ================= EXAM EDIT DIALOG =================
+    editingExam?.let { currentExam ->
+        var editTitleHindi by remember { mutableStateOf(currentExam.titleHindi) }
+        var editBadgeText by remember { mutableStateOf(currentExam.badgeText) }
+        var editAuthority by remember { mutableStateOf(currentExam.stateAuthority) }
+
+        Dialog(onDismissRequest = { editingExam = null }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0A2E26)),
+                border = BorderStroke(1.2.dp, SaffronYellow.copy(alpha = 0.7f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text(
+                        text = "${currentExam.code} विवरण संपादित करें",
+                        color = PaperLight,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = editTitleHindi,
+                        onValueChange = { editTitleHindi = it },
+                        label = { Text("परीक्षा का नाम (हिंदी)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = editBadgeText,
+                        onValueChange = { editBadgeText = it },
+                        label = { Text("बैज टैक्स्ट (e.g. ★ सत्र 2026 लाइव)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = editAuthority,
+                        onValueChange = { editAuthority = it },
+                        label = { Text("परीक्षा प्राधिकरण (Authority)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { editingExam = null },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("रद्द करें", color = PaperLight)
+                        }
+
+                        Button(
+                            onClick = {
+                                exams = exams.map {
+                                    if (it.id == currentExam.id) it.copy(
+                                        titleHindi = editTitleHindi.trim(),
+                                        badgeText = editBadgeText.trim(),
+                                        stateAuthority = editAuthority.trim()
+                                    ) else it
+                                }
+                                editingExam = null
+                                Toast.makeText(context, "${currentExam.code} अपडेट हुआ! पब्लिश करें दबाएँ।", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("सुरक्षित करें", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -458,7 +707,7 @@ fun AdminDashboardScreen() {
         }
     }
 
-    // Add Notice Dialog
+    // ================= ADD NOTICE DIALOG =================
     if (showAddNoticeDialog) {
         var newTitle by remember { mutableStateOf("") }
         var newMessage by remember { mutableStateOf("") }
@@ -528,7 +777,7 @@ fun AdminDashboardScreen() {
         }
     }
 
-    // Cloud GitHub Settings Dialog
+    // ================= CLOUD SETTINGS DIALOG =================
     if (showCloudSettingsDialog) {
         var owner by remember { mutableStateOf(gitHubConfig.owner) }
         var repo by remember { mutableStateOf(gitHubConfig.repo) }
@@ -544,7 +793,7 @@ fun AdminDashboardScreen() {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(text = "⚙️️ GitHub / क्लाउड सेटिंग्स", color = PaperLight, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "⚙ GitHub / क्लाउड सेटिंग्स", color = PaperLight, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(text = "अन्य फोन पर ऑटो-सिंक हेतु अपनी GitHub रिपॉजिटरी कॉन्फ़िगर करें:", color = Color(0xFF8FC3B4), fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(10.dp))
