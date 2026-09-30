@@ -78,7 +78,7 @@
     {
       "id": "ctet",
       "code": "CTET",
-      "titleHindi": "केंद्रीय शिक्षक पात्रता परीक्षा",
+      "titleHindi": "केंद्रीय शिक्षक पात्रता परीक्षा CTET",
       "titleEnglish": "Central Teacher Eligibility Test",
       "stateAuthority": "CBSE • अखिल भारतीय",
       "badgeText": "★ सत्र 2026 December",
@@ -196,7 +196,7 @@
       "examId": "ctet",
       "paper": "PAPER_1",
       "code": "CDP",
-      "titleHindi": "बाल विकास एवं शिक्षाशास्त्र के अनुसार",
+      "titleHindi": "बाल विकास एवं शिक्षाशास्त्र",
       "titleEnglish": "Child Development & Pedagogy",
       "questionCount": 30,
       "marks": 30,
@@ -271,7 +271,7 @@
       "examId": "ctet",
       "paper": "PAPER_2",
       "code": "CDP",
-      "titleHindi": "बाल विकास एवं शिक्षाशास्त्र के अनुसार",
+      "titleHindi": "बाल विकास एवं शिक्षाशास्त्र",
       "titleEnglish": "Child Development & Pedagogy",
       "questionCount": 30,
       "marks": 30,
@@ -346,7 +346,7 @@
       "examId": "ctet",
       "paper": "BOTH",
       "code": "CDP",
-      "titleHindi": "बाल विकास एवं शिक्षाशास्त्र के अनुसार",
+      "titleHindi": "बाल विकास एवं शिक्षाशास्त्र",
       "titleEnglish": "Child Development & Pedagogy",
       "questionCount": 30,
       "marks": 30,
@@ -2014,5 +2014,5 @@
   ],
   "questions": [],
   "appVersionText": "v4.0 • PRODUCTION BUILD",
-  "lastSyncTime": 1790754202376
+  "lastSyncTime": 1790754666997
 }
