@@ -1,15 +1,6 @@
 {
   "announcements": [
     {
-      "id": "ann_1790750735957",
-      "title": "aaj ki taaja khabar",
-      "message": "yah to Abhi kya complete ho gaya hai",
-      "dateText": "अभी",
-      "actionUrl": "",
-      "isHot": true,
-      "isPublished": true
-    },
-    {
       "id": "ann_01",
       "title": "CTET दिसंबर सत्र 2026: आवेदन प्रारंभ",
       "message": "केंद्रीय शिक्षक पात्रता परीक्षा हेतु आधिकारिक विवरणिका जारी। पाठ्यक्रम के अनुसार विषयवार चरणबद्ध तैयारी शुरू करें।",
@@ -200,5 +191,5 @@
     }
   ],
   "appVersionText": "v4.0 • PRODUCTION BUILD",
-  "lastSyncTime": 1790750735959
+  "lastSyncTime": 1790750938201
 }
