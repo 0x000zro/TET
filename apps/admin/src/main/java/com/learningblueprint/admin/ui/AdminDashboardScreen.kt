@@ -13,10 +13,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -42,42 +42,49 @@ fun AdminDashboardScreen() {
     val coroutineScope = rememberCoroutineScope()
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    // INITIAL CACHE LOAD (Prevent reverting to defaults on restart)
+    // 1. INITIAL CACHE LOAD (Prevent reverting to defaults on restart)
     val initConfig = remember {
         val prefs = context.getSharedPreferences("admin_sync_store", Context.MODE_PRIVATE)
         val json = prefs.getString("published_config", null)
         if (json != null) AppConfig.fromJsonString(json) ?: AppConfig.DEFAULT else AppConfig.DEFAULT
     }
 
-    // GENERATE DEFAULT MASTER LISTS IF EMPTY
+    // 2. GENERATE DEFAULT MASTER LISTS IF EMPTY
     val defaultAllSubjects = remember { Exam.ALL_EXAMS.flatMap { e -> ExamPaper.values().flatMap { p -> Subject.getSubjectsForExam(e.id, p) } } }
     val defaultAllChapters = remember { defaultAllSubjects.map { it.code }.distinct().flatMap { c -> Chapter.getChaptersForSubject(c) }.distinctBy { it.id } }
+    val defaultAllQuestions = remember { defaultAllChapters.flatMap { Question.getQuestionsForChapter(it.id) }.distinctBy { it.id } }
 
     var announcements by remember { mutableStateOf(initConfig.announcements) }
     var socialLinks by remember { mutableStateOf(initConfig.socialLinks) }
     var exams by remember { mutableStateOf(initConfig.exams) }
 
-    // MASTER STATES (Contains all data across all exams)
+    // 3. MASTER STATES (Contains all data across all exams)
     var allSubjects by remember { mutableStateOf(if (initConfig.subjects.isNotEmpty()) initConfig.subjects else defaultAllSubjects) }
     var allChapters by remember { mutableStateOf(if (initConfig.chapters.isNotEmpty()) initConfig.chapters else defaultAllChapters) }
+    var allQuestions by remember { mutableStateOf(if (initConfig.questions.isNotEmpty()) initConfig.questions else defaultAllQuestions) }
 
-    // DERIVED UI STATES (Filtered specifically for display)
+    // 4. DERIVED UI STATES (Filtered specifically for hierarchical drill-down display)
     var selectedCurriculumExam by remember { mutableStateOf(exams.firstOrNull() ?: Exam.ALL_EXAMS.first()) }
     var selectedCurriculumPaper by remember { mutableStateOf(ExamPaper.PAPER_1) }
-    
+
     val subjects = allSubjects.filter { it.examId == selectedCurriculumExam.id && it.paper == selectedCurriculumPaper }
-    
     var selectedSubjectForChapters by remember { mutableStateOf<Subject?>(null) }
     val chapters = if (selectedSubjectForChapters != null) allChapters.filter { it.subjectCode == selectedSubjectForChapters!!.code } else emptyList()
 
+    var selectedChapterForQuestions by remember { mutableStateOf<Chapter?>(null) }
+    val questions = if (selectedChapterForQuestions != null) allQuestions.filter { it.chapterId == selectedChapterForQuestions!!.id } else emptyList()
+
     var isPublishing by remember { mutableStateOf(false) }
 
-    // Dialog States
+    // 5. DIALOG STATES
     var showAddNoticeDialog by remember { mutableStateOf(false) }
     var editingSocialLink by remember { mutableStateOf<SocialLink?>(null) }
     var editingExam by remember { mutableStateOf<Exam?>(null) }
     var editingSubject by remember { mutableStateOf<Subject?>(null) }
     var editingChapter by remember { mutableStateOf<Chapter?>(null) }
+    var editingQuestion by remember { mutableStateOf<Question?>(null) }
+    var showAddQuestionDialog by remember { mutableStateOf(false) }
+    var showBulkPasteDialog by remember { mutableStateOf(false) }
     var showCloudSettingsDialog by remember { mutableStateOf(false) }
     var gitHubConfig by remember { mutableStateOf(AdminRemoteSyncManager.getGitHubConfig(context)) }
 
@@ -86,15 +93,16 @@ fun AdminDashboardScreen() {
             isPublishing = true
             val liveNotices = announcements.filter { it.isPublished }
             val ticker = liveNotices.firstOrNull() ?: AppConfig.DEFAULT.tickerAnnouncement
-            
-            // SEND THE MASTER LISTS, NOT THE FILTERED ONES!
+
+            // BUNDLE FULL MASTER LISTS (Screens 1 to 5)
             val config = AppConfig(
                 tickerAnnouncement = ticker,
                 announcements = announcements,
                 socialLinks = socialLinks,
                 exams = exams,
-                subjects = allSubjects, 
+                subjects = allSubjects,
                 chapters = allChapters,
+                questions = allQuestions,
                 lastSyncTime = System.currentTimeMillis()
             )
 
@@ -165,7 +173,7 @@ fun AdminDashboardScreen() {
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         modifier = Modifier.height(36.dp)
                     ) {
-                        Icon(Icons.Default.Send, contentDescription = "Publish", modifier = Modifier.size(14.dp))
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Publish", modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(text = if (isPublishing) "पब्लिशिंग..." else "पब्लिश", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
@@ -474,11 +482,11 @@ fun AdminDashboardScreen() {
                 }
 
                 3 -> {
-                    // TAB 3: CURRICULUM MANAGEMENT (SCREEN 3 SUBJECTS & SCREEN 4 CHAPTERS)
+                    // TAB 3: CURRICULUM MANAGEMENT (SCREEN 3 SUBJECTS, SCREEN 4 CHAPTERS, SCREEN 5 QUESTIONS)
                     val activeSubject = selectedSubjectForChapters
 
                     if (activeSubject == null) {
-                        // ================= SCREEN 3: SUBJECT MANAGEMENT =================
+                        // ================= LEVEL 1: SCREEN 3 SUBJECT MANAGEMENT =================
                         Column(modifier = Modifier.fillMaxSize()) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -498,7 +506,6 @@ fun AdminDashboardScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                // Exam Filter Chip
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = Color(0x20FFFFFF),
@@ -515,7 +522,6 @@ fun AdminDashboardScreen() {
                                     }
                                 }
 
-                                // Paper Tier Filter Chip
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = Color(0x20FFFFFF),
@@ -616,9 +622,7 @@ fun AdminDashboardScreen() {
                                                 Text(text = "${subject.marks} अंक • ${subject.chaptersCount} अध्याय", color = SaffronYellow, fontSize = 11.sp, fontWeight = FontWeight.Bold)
 
                                                 Button(
-                                                    onClick = {
-                                                        selectedSubjectForChapters = subject
-                                                    },
+                                                    onClick = { selectedSubjectForChapters = subject },
                                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0x28FFFFFF), contentColor = PaperLight),
                                                     shape = RoundedCornerShape(8.dp),
                                                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
@@ -634,8 +638,8 @@ fun AdminDashboardScreen() {
                                 }
                             }
                         }
-                    } else {
-                        // ================= SCREEN 4: CHAPTER ROADMAP MANAGEMENT =================
+                    } else if (selectedChapterForQuestions == null) {
+                        // ================= LEVEL 2: SCREEN 4 CHAPTER ROADMAP MANAGEMENT =================
                         Column(modifier = Modifier.fillMaxSize()) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -674,6 +678,8 @@ fun AdminDashboardScreen() {
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 items(chapters, key = { it.id }) { chapter ->
+                                    val chapterQuestionCount = allQuestions.count { it.chapterId == chapter.id }
+
                                     Surface(
                                         shape = RoundedCornerShape(14.dp),
                                         color = if (chapter.isPublished) Color(0x20FFFFFF) else Color(0x10FFFFFF),
@@ -771,6 +777,202 @@ fun AdminDashboardScreen() {
                                                     modifier = Modifier.height(22.dp)
                                                 )
                                             }
+
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            // CTA to Screen 5: Question Bank Management
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "PYQ बैंक: $chapterQuestionCount प्रश्न",
+                                                    color = SaffronYellow,
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+
+                                                Button(
+                                                    onClick = { selectedChapterForQuestions = chapter },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0x28FFFFFF), contentColor = PaperLight),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                                    modifier = Modifier.height(28.dp)
+                                                ) {
+                                                    Text("प्रश्न बैंक देखें", fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "View", modifier = Modifier.size(12.dp))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // ================= LEVEL 3: SCREEN 5 QUESTION BANK MANAGEMENT =================
+                        val activeChapter = selectedChapterForQuestions!!
+
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = { selectedChapterForQuestions = null },
+                                        modifier = Modifier.size(34.dp).clip(CircleShape).background(Color(0x22FFFFFF))
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = PaperLight, modifier = Modifier.size(16.dp))
+                                    }
+
+                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                    Column {
+                                        Text(
+                                            text = "CH ${activeChapter.chapterNumber} • प्रश्न बैंक (${questions.size})",
+                                            color = PaperLight,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = activeChapter.titleHindi,
+                                            color = SaffronYellow,
+                                            fontSize = 10.5.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Button(
+                                        onClick = { showBulkPasteDialog = true },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C9E5F), contentColor = PaperLight),
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(30.dp)
+                                    ) {
+                                        Text("📋 बल्क पेस्ट", fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                    }
+
+                                    Button(
+                                        onClick = { showAddQuestionDialog = true },
+                                        colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(30.dp)
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = "Add", modifier = Modifier.size(13.dp))
+                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Text("प्रश्न जोड़ें", fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            if (questions.isEmpty()) {
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = Color(0x12FFFFFF),
+                                    modifier = Modifier.fillMaxWidth().padding(top = 20.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(24.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("इस अध्याय में अभी कोई प्रश्न नहीं हैं", color = PaperLight, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text("ऊपर 'बल्क पेस्ट' बटन दबाकर 30 से 150 प्रश्न एक साथ जोड़ें।", color = Color(0xFF8FC3B4), fontSize = 11.5.sp)
+                                    }
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    items(questions.withIndex().toList(), key = { it.value.id }) { (index, question) ->
+                                        Surface(
+                                            shape = RoundedCornerShape(14.dp),
+                                            color = Color(0x15FFFFFF),
+                                            border = BorderStroke(1.dp, Color(0x28FFFFFF)),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Surface(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        color = SaffronYellow.copy(alpha = 0.2f),
+                                                        border = BorderStroke(0.8.dp, SaffronYellow)
+                                                    ) {
+                                                        Text(
+                                                            text = "Q${index + 1} • ${question.examYearText}",
+                                                            color = SaffronYellow,
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        )
+                                                    }
+
+                                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                        IconButton(
+                                                            onClick = { editingQuestion = question },
+                                                            modifier = Modifier.size(26.dp)
+                                                        ) {
+                                                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = PaperLight, modifier = Modifier.size(13.dp))
+                                                        }
+                                                        IconButton(
+                                                            onClick = {
+                                                                allQuestions = allQuestions.filter { it.id != question.id }
+                                                                val newCount = allQuestions.count { it.chapterId == activeChapter.id }
+                                                                allChapters = allChapters.map { if (it.id == activeChapter.id) it.copy(pyqCount = newCount) else it }
+                                                            },
+                                                            modifier = Modifier.size(26.dp)
+                                                        ) {
+                                                            Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color(0xFFFF6B60), modifier = Modifier.size(14.dp))
+                                                        }
+                                                    }
+                                                }
+
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                                Text(
+                                                    text = question.questionHindi,
+                                                    color = PaperLight,
+                                                    fontSize = 12.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                val correctOptText = question.options.getOrNull(question.correctOptionIndex) ?: ""
+                                                Text(
+                                                    text = "✓ सही उत्तर (${question.correctOptionIndex + 1}): $correctOptText",
+                                                    color = Color(0xFF1C9E5F),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+
+                                                if (question.explanationHindi.isNotBlank()) {
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Text(
+                                                        text = "व्याख्या: ${question.explanationHindi}",
+                                                        color = Color(0xFFCFE0D7),
+                                                        fontSize = 10.5.sp,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -791,7 +993,7 @@ fun AdminDashboardScreen() {
                             Text(text = "🌐 क्रॉस-डिवाइस रिमोट सिंक स्थिति", color = SaffronYellow, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "अब आप किसी भी दूसरे फोन पर मौजूद स्टूडेंट ऐप में सीधे 5-स्क्रीन पाठ्यक्रम, परीक्षा, नोटिस व सोशल लिंक भेज सकते हैं।",
+                                text = "अब आप किसी भी दूसरे फोन पर मौजूद स्टूडेंट ऐप में सीधे 5-स्क्रीन पाठ्यक्रम, परीक्षा, नोटिस, अध्याय व प्रश्नोत्तरी भेज सकते हैं।",
                                 color = Color(0xFFCFE0D7),
                                 fontSize = 12.sp,
                                 lineHeight = 18.sp
@@ -809,6 +1011,265 @@ fun AdminDashboardScreen() {
                             ) {
                                 Text("क्लाउड / GitHub सेटिंग्स बदलें", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ================= BULK QUESTION IMPORT DIALOG (30–150 QUESTIONS PASTE) =================
+    if (showBulkPasteDialog && selectedChapterForQuestions != null) {
+        val targetCh = selectedChapterForQuestions!!
+        var pastedText by remember { mutableStateOf("") }
+        var parseResult by remember { mutableStateOf<BatchQuestionParser.ParseResult?>(null) }
+        var isParsing by remember { mutableStateOf(false) }
+
+        Dialog(onDismissRequest = { showBulkPasteDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF07261F)),
+                border = BorderStroke(1.2.dp, SaffronYellow.copy(alpha = 0.7f)),
+                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.92f)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "📋 बल्क प्रश्न आयात (30-150 PYQs)", color = PaperLight, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "CH ${targetCh.chapterNumber}: ${targetCh.titleHindi}", color = SaffronYellow, fontSize = 10.5.sp, maxLines = 1)
+                        }
+                        IconButton(onClick = { showBulkPasteDialog = false }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = PaperLight)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = pastedText,
+                        onValueChange = {
+                            pastedText = it
+                            parseResult = null
+                        },
+                        label = { Text("प्रश्न-पत्र का सम्पूर्ण टेक्स्ट यहाँ पेस्ट करें (अभिकथन, 4 विकल्प, उत्तर व सम्पूर्ण व्याख्या)") },
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        minLines = 8,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = SaffronYellow,
+                            unfocusedBorderColor = Color(0x33FFFFFF)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Parse / Audit Summary View
+                    parseResult?.let { result ->
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (result.failedCount == 0) Color(0x221C9E5F) else Color(0x22DD4F3A),
+                            border = BorderStroke(1.dp, if (result.failedCount == 0) Color(0xFF1C9E5F) else Color(0xFFDD4F3A)),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                Text(
+                                    text = "जाँच परिणाम: ${result.successfulQuestions.size} प्रश्न सफलतापूर्वक पहचाने गए (कुल खोजे: ${result.totalDetected})",
+                                    color = PaperLight,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (result.errors.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "त्रुटियाँ: ${result.errors.take(2).joinToString(" | ")}",
+                                        color = Color(0xFFFF8B80),
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                isParsing = true
+                                parseResult = BatchQuestionParser.parseRawText(
+                                    rawText = pastedText,
+                                    chapterId = targetCh.id,
+                                    subjectCode = selectedSubjectForChapters?.code ?: targetCh.subjectCode,
+                                    defaultExamYear = "CTET Official PYQ"
+                                )
+                                isParsing = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FFFFFF), contentColor = PaperLight),
+                            modifier = Modifier.weight(1f),
+                            enabled = pastedText.isNotBlank() && !isParsing
+                        ) {
+                            Text(if (isParsing) "पार्सिंग..." else "1. जाँचें व पार्स करें", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = {
+                                val toAdd = parseResult?.successfulQuestions ?: emptyList()
+                                if (toAdd.isNotEmpty()) {
+                                    allQuestions = allQuestions + toAdd
+                                    val newCount = allQuestions.count { it.chapterId == targetCh.id }
+                                    allChapters = allChapters.map { if (it.id == targetCh.id) it.copy(pyqCount = newCount) else it }
+                                    showBulkPasteDialog = false
+                                    Toast.makeText(context, "${toAdd.size} प्रश्न सफलतापूर्वक जोड़े गए! पब्लिश करें दबाएँ।", Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
+                            modifier = Modifier.weight(1f),
+                            enabled = parseResult != null && parseResult!!.successfulQuestions.isNotEmpty()
+                        ) {
+                            Text("2. बैंक में जोड़ें", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ================= SINGLE QUESTION ADD / EDIT DIALOG =================
+    val targetQuestion = editingQuestion ?: if (showAddQuestionDialog && selectedChapterForQuestions != null) {
+        Question(
+            id = "q_${selectedChapterForQuestions!!.id}_${System.currentTimeMillis()}",
+            chapterId = selectedChapterForQuestions!!.id,
+            subjectCode = selectedSubjectForChapters?.code ?: selectedChapterForQuestions!!.subjectCode,
+            examYearText = "CTET PYQ",
+            questionHindi = "",
+            questionEnglish = "",
+            options = listOf("", "", "", ""),
+            correctOptionIndex = 0,
+            explanationHindi = ""
+        )
+    } else null
+
+    if (targetQuestion != null) {
+        var editExamYear by remember { mutableStateOf(targetQuestion.examYearText) }
+        var editQHindi by remember { mutableStateOf(targetQuestion.questionHindi) }
+        var optA by remember { mutableStateOf(targetQuestion.options.getOrNull(0) ?: "") }
+        var optB by remember { mutableStateOf(targetQuestion.options.getOrNull(1) ?: "") }
+        var optC by remember { mutableStateOf(targetQuestion.options.getOrNull(2) ?: "") }
+        var optD by remember { mutableStateOf(targetQuestion.options.getOrNull(3) ?: "") }
+        var correctIdx by remember { mutableIntStateOf(targetQuestion.correctOptionIndex) }
+        var editExplanation by remember { mutableStateOf(targetQuestion.explanationHindi) }
+
+        Dialog(onDismissRequest = { editingQuestion = null; showAddQuestionDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF07261F)),
+                border = BorderStroke(1.2.dp, SaffronYellow.copy(alpha = 0.7f)),
+                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.92f)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = if (editingQuestion != null) "प्रश्न संपादित करें" else "नया प्रश्न जोड़ें",
+                        color = PaperLight,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item {
+                            OutlinedTextField(
+                                value = editExamYear,
+                                onValueChange = { editExamYear = it },
+                                label = { Text("परीक्षा टैग (e.g. CTET 2024 / UPTET)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                        }
+                        item {
+                            OutlinedTextField(
+                                value = editQHindi,
+                                onValueChange = { editQHindi = it },
+                                label = { Text("प्रश्न (हिंदी)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 2
+                            )
+                        }
+                        item { OutlinedTextField(value = optA, onValueChange = { optA = it }, label = { Text("विकल्प 1 (A)") }, modifier = Modifier.fillMaxWidth()) }
+                        item { OutlinedTextField(value = optB, onValueChange = { optB = it }, label = { Text("विकल्प 2 (B)") }, modifier = Modifier.fillMaxWidth()) }
+                        item { OutlinedTextField(value = optC, onValueChange = { optC = it }, label = { Text("विकल्प 3 (C)") }, modifier = Modifier.fillMaxWidth()) }
+                        item { OutlinedTextField(value = optD, onValueChange = { optD = it }, label = { Text("विकल्प 4 (D)") }, modifier = Modifier.fillMaxWidth()) }
+
+                        item {
+                            Text("सही उत्तर विकल्प चुनें:", color = Color(0xFF8FC3B4), fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf("1", "2", "3", "4").forEachIndexed { idx, label ->
+                                    Button(
+                                        onClick = { correctIdx = idx },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (correctIdx == idx) Color(0xFF1C9E5F) else Color(0x22FFFFFF),
+                                            contentColor = PaperLight
+                                        ),
+                                        modifier = Modifier.weight(1f).height(32.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text(text = "($label)", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            OutlinedTextField(
+                                value = editExplanation,
+                                onValueChange = { editExplanation = it },
+                                label = { Text("विस्तृत व्याख्या व पेडागॉजिकल विश्लेषण") },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 3
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { editingQuestion = null; showAddQuestionDialog = false },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("रद्द करें", color = PaperLight)
+                        }
+
+                        Button(
+                            onClick = {
+                                val updated = targetQuestion.copy(
+                                    examYearText = editExamYear.trim(),
+                                    questionHindi = editQHindi.trim(),
+                                    options = listOf(optA.trim(), optB.trim(), optC.trim(), optD.trim()),
+                                    correctOptionIndex = correctIdx,
+                                    explanationHindi = editExplanation.trim()
+                                )
+                                allQuestions = if (editingQuestion != null) {
+                                    allQuestions.map { if (it.id == updated.id) updated else it }
+                                } else {
+                                    listOf(updated) + allQuestions
+                                }
+                                val activeCh = selectedChapterForQuestions
+                                if (activeCh != null) {
+                                    val newCount = allQuestions.count { it.chapterId == activeCh.id }
+                                    allChapters = allChapters.map { if (it.id == activeCh.id) it.copy(pyqCount = newCount) else it }
+                                }
+                                editingQuestion = null
+                                showAddQuestionDialog = false
+                                Toast.makeText(context, "प्रश्न सुरक्षित हुआ!", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("सुरक्षित करें", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
