@@ -8,6 +8,7 @@
         android:allowBackup="true"
         android:icon="@android:drawable/sym_def_app_icon"
         android:label="Guru Ji"
+        android:theme="@style/Theme.GuruJi"
         android:supportsRtl="true">
         
         <activity
@@ -19,7 +20,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Admin IPC Provider for Student App Sync on same device -->
         <provider
             android:name=".provider.AdminConfigProvider"
             android:authorities="com.learningblueprint.admin.provider"

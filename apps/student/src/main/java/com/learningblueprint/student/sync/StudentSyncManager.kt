@@ -18,7 +18,7 @@ object StudentSyncManager {
     private const val KEY_CACHED_CONFIG = "cached_app_config"
     private const val KEY_REMOTE_URL = "custom_remote_sync_url"
 
-    // Default public endpoint (configurable by Admin or Student)
+    // Official production endpoint on user repository
     const val DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/0x000zro/TET/main/announcements.json"
 
     fun getCachedConfig(context: Context): AppConfig {
@@ -38,7 +38,14 @@ object StudentSyncManager {
 
     fun getRemoteSyncUrl(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_REMOTE_URL, DEFAULT_REMOTE_URL) ?: DEFAULT_REMOTE_URL
+        val saved = prefs.getString(KEY_REMOTE_URL, DEFAULT_REMOTE_URL) ?: DEFAULT_REMOTE_URL
+        // Auto-migrate any legacy demo URL to official TET repository
+        return if (saved.contains("learning-blueprint/content")) {
+            setRemoteSyncUrl(context, DEFAULT_REMOTE_URL)
+            DEFAULT_REMOTE_URL
+        } else {
+            saved
+        }
     }
 
     fun setRemoteSyncUrl(context: Context, url: String) {
@@ -53,12 +60,6 @@ object StudentSyncManager {
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
-    /**
-     * Multi-Tier Sync Flow:
-     * 1. Try Local IPC Provider (if Guru Ji Admin is on same phone)
-     * 2. Try Remote Cloud HTTPS Endpoint (for cross-device synchronization)
-     * 3. Fallback to Local Cached data if network fails
-     */
     suspend fun syncAll(context: Context): Pair<AppConfig, String> = withContext(Dispatchers.IO) {
         // Tier 1: Check Local Admin Provider on same device
         try {
@@ -73,10 +74,10 @@ object StudentSyncManager {
                 }
             }
         } catch (_: Exception) {
-            // Local provider not found; continue to Remote Cloud Tier
+            // Local provider not reachable; continue to remote
         }
 
-        // Tier 2: Check Remote Cloud URL across devices
+        // Tier 2: Check Remote GitHub Raw URL
         if (isNetworkAvailable(context)) {
             val remoteUrl = getRemoteSyncUrl(context)
             try {
@@ -102,11 +103,11 @@ object StudentSyncManager {
                     val parsed = AppConfig.fromJsonString(sb.toString())
                     if (parsed != null) {
                         saveConfigLocally(context, parsed)
-                        return@withContext Pair(parsed, "क्लाउड से लाइव सिंक सफल")
+                        return@withContext Pair(parsed, "GitHub क्लाउड से लाइव सिंक सफल")
                     }
                 }
-            } catch (e: Exception) {
-                // Network error; will smoothly fall back to cached data
+            } catch (_: Exception) {
+                // Network error; gracefully fall back to cache
             }
         }
 

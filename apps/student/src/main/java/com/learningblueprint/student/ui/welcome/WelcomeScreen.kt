@@ -335,7 +335,7 @@ fun WelcomeScreen(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = social.platform, color = Color(social.hexColor), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        SocialBrandIcon(platform = social.platform, sizeDp = 44.dp)
                     }
                 }
             }

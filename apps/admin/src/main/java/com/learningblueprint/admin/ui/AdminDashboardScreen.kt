@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -44,6 +45,7 @@ fun AdminDashboardScreen() {
     var isPublishing by remember { mutableStateOf(false) }
 
     var showAddNoticeDialog by remember { mutableStateOf(false) }
+    var editingSocialLink by remember { mutableStateOf<SocialLink?>(null) }
     var showCloudSettingsDialog by remember { mutableStateOf(false) }
     var gitHubConfig by remember { mutableStateOf(AdminRemoteSyncManager.getGitHubConfig(context)) }
 
@@ -81,7 +83,7 @@ fun AdminDashboardScreen() {
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            // Header Row
+            // Header Row (Immersive & Regal)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -112,7 +114,7 @@ fun AdminDashboardScreen() {
                     IconButton(
                         onClick = { showCloudSettingsDialog = true },
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
                             .background(Color(0x22FFFFFF))
                     ) {
@@ -124,7 +126,7 @@ fun AdminDashboardScreen() {
                         colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(34.dp)
+                        modifier = Modifier.height(36.dp)
                     ) {
                         Icon(Icons.Default.Send, contentDescription = "Publish", modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -169,6 +171,7 @@ fun AdminDashboardScreen() {
 
             when (selectedTab) {
                 0 -> {
+                    // TAB 1: NOTICES
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -251,16 +254,29 @@ fun AdminDashboardScreen() {
                 }
 
                 1 -> {
-                    Text(text = "सोशल लिंक्स टॉगल करें", color = PaperLight, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(10.dp))
+                    // TAB 2: SOCIAL MEDIA MANAGER (WITH RESTORED EDIT FUNCTIONALITY & BRAND ICONS)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(text = "सोशल मीडिया चैनल प्रबंधन", color = PaperLight, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "लिंक बदलने हेतु 'बदलें' बटन दबाएँ", color = Color(0xFF8FC3B4), fontSize = 11.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(socialLinks, key = { it.platform }) { link ->
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 color = Color(0x18FFFFFF),
+                                border = BorderStroke(1.dp, Color(0x28FFFFFF)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -268,19 +284,54 @@ fun AdminDashboardScreen() {
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column {
-                                        Text(text = "${link.platform} • ${link.label}", color = PaperLight, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                        Text(text = link.url, color = Color(0xFF8FC3B4), fontSize = 11.sp)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        // Official Vector Brand Icon
+                                        SocialBrandIcon(platform = link.platform, sizeDp = 42.dp)
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = link.label,
+                                                color = PaperLight,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = link.url,
+                                                color = Color(0xFF8FC3B4),
+                                                fontSize = 11.sp,
+                                                maxLines = 1
+                                            )
+                                        }
                                     }
-                                    Switch(
-                                        checked = link.isEnabled,
-                                        onCheckedChange = {
-                                            socialLinks = socialLinks.map {
-                                                if (it.platform == link.platform) it.copy(isEnabled = !it.isEnabled) else it
-                                            }
-                                        },
-                                        colors = SwitchDefaults.colors(checkedThumbColor = SaffronYellow)
-                                    )
+
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        // Restored EDIT Button
+                                        Button(
+                                            onClick = { editingSocialLink = link },
+                                            colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(32.dp)
+                                        ) {
+                                            Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(13.dp))
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Text("बदलें", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        Switch(
+                                            checked = link.isEnabled,
+                                            onCheckedChange = {
+                                                socialLinks = socialLinks.map {
+                                                    if (it.platform == link.platform) it.copy(isEnabled = !it.isEnabled) else it
+                                                }
+                                            },
+                                            colors = SwitchDefaults.colors(checkedThumbColor = SaffronYellow)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -288,6 +339,7 @@ fun AdminDashboardScreen() {
                 }
 
                 2 -> {
+                    // TAB 3: REMOTE SYNC STATUS
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = Color(0x20FFFFFF),
@@ -305,8 +357,8 @@ fun AdminDashboardScreen() {
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = if (gitHubConfig.isConfigured) "• GitHub रिपॉजिटरी: ${gitHubConfig.owner}/${gitHubConfig.repo} (${gitHubConfig.branch})" else "• रिमोट रिपॉजिटरी: अभी अन-कॉन्फ़िगर है (ऊपर सेटिंग्स से सेट करें)",
-                                color = if (gitHubConfig.isConfigured) Color(0xFF1C9E5F) else Color(0xFFFFE6B0),
+                                text = "• GitHub रिपॉजिटरी: ${gitHubConfig.owner}/${gitHubConfig.repo} (${gitHubConfig.branch})",
+                                color = Color(0xFF1C9E5F),
                                 fontSize = 12.5.sp
                             )
                             Spacer(modifier = Modifier.height(4.dp))
@@ -320,6 +372,85 @@ fun AdminDashboardScreen() {
                             ) {
                                 Text("क्लाउड / GitHub सेटिंग्स बदलें", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ================= RESTORED EDIT SOCIAL LINK DIALOG =================
+    editingSocialLink?.let { currentLink ->
+        var editLabel by remember { mutableStateOf(currentLink.label) }
+        var editUrl by remember { mutableStateOf(currentLink.url) }
+
+        Dialog(onDismissRequest = { editingSocialLink = null }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0A2E26)),
+                border = BorderStroke(1.2.dp, SaffronYellow.copy(alpha = 0.7f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SocialBrandIcon(platform = currentLink.platform, sizeDp = 32.dp)
+                        Text(
+                            text = "${currentLink.platform} लिंक बदलें",
+                            color = PaperLight,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = editLabel,
+                        onValueChange = { editLabel = it },
+                        label = { Text("चैनल नाम (Label)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = editUrl,
+                        onValueChange = { editUrl = it },
+                        label = { Text("लिंक URL (https://...)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { editingSocialLink = null },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("रद्द करें", color = PaperLight)
+                        }
+
+                        Button(
+                            onClick = {
+                                socialLinks = socialLinks.map {
+                                    if (it.platform == currentLink.platform) it.copy(
+                                        label = editLabel.trim(),
+                                        url = editUrl.trim()
+                                    ) else it
+                                }
+                                editingSocialLink = null
+                                Toast.makeText(context, "${currentLink.platform} लिंक अपडेट हुआ! पब्लिश करें दबाएँ।", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("सुरक्षित करें", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -413,7 +544,7 @@ fun AdminDashboardScreen() {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(text = "⚙️ GitHub / क्लाउड सेटिंग्स", color = PaperLight, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "⚙️️ GitHub / क्लाउड सेटिंग्स", color = PaperLight, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(text = "अन्य फोन पर ऑटो-सिंक हेतु अपनी GitHub रिपॉजिटरी कॉन्फ़िगर करें:", color = Color(0xFF8FC3B4), fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(10.dp))

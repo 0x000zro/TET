@@ -13,6 +13,7 @@
         android:allowBackup="true"
         android:icon="@android:drawable/sym_def_app_icon"
         android:label="Blueprint"
+        android:theme="@style/Theme.LearningBlueprint"
         android:supportsRtl="true">
         <activity
             android:name=".MainActivity"
