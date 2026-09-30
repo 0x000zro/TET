@@ -1,7 +1,6 @@
 package com.learningblueprint.student
 
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -14,6 +13,7 @@ import com.learningblueprint.core.model.Subject
 import com.learningblueprint.core.theme.LearningBlueprintTheme
 import com.learningblueprint.student.ui.chapter.ChapterRoadmapScreen
 import com.learningblueprint.student.ui.exam.ExamSelectionScreen
+import com.learningblueprint.student.ui.quiz.PracticeQuizScreen
 import com.learningblueprint.student.ui.subject.SubjectBlueprintScreen
 import com.learningblueprint.student.ui.welcome.WelcomeScreen
 
@@ -22,6 +22,7 @@ sealed interface AppScreen {
     data object ExamSelection : AppScreen
     data class SubjectBlueprint(val exam: Exam, val paper: ExamPaper) : AppScreen
     data class ChapterRoadmap(val exam: Exam, val paper: ExamPaper, val subject: Subject) : AppScreen
+    data class PracticeQuiz(val exam: Exam, val paper: ExamPaper, val subject: Subject, val chapter: Chapter) : AppScreen
 }
 
 class MainActivity : ComponentActivity() {
@@ -86,11 +87,23 @@ class MainActivity : ComponentActivity() {
                                 currentScreen = AppScreen.SubjectBlueprint(screen.exam, screen.paper)
                             },
                             onChapterClick = { chapter ->
-                                Toast.makeText(
-                                    this,
-                                    "अध्याय: ${chapter.titleHindi}\nअगला चरण: PYQ प्रश्नोत्तरी व टेस्ट मॉड्यूल (Screen 5)!",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                currentScreen = AppScreen.PracticeQuiz(screen.exam, screen.paper, screen.subject, chapter)
+                            }
+                        )
+                    }
+
+                    is AppScreen.PracticeQuiz -> {
+                        BackHandler {
+                            currentScreen = AppScreen.ChapterRoadmap(screen.exam, screen.paper, screen.subject)
+                        }
+
+                        PracticeQuizScreen(
+                            exam = screen.exam,
+                            paper = screen.paper,
+                            subject = screen.subject,
+                            chapter = screen.chapter,
+                            onBackClick = {
+                                currentScreen = AppScreen.ChapterRoadmap(screen.exam, screen.paper, screen.subject)
                             }
                         )
                     }
