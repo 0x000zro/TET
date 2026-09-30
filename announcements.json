@@ -1,0 +1,49 @@
+{
+  "announcements": [
+    {
+      "id": "ann_01",
+      "title": "CTET दिसंबर सत्र 2026: आवेदन प्रारंभ",
+      "message": "केंद्रीय शिक्षक पात्रता परीक्षा हेतु आधिकारिक विवरणिका जारी। पाठ्यक्रम के अनुसार विषयवार चरणबद्ध तैयारी शुरू करें।",
+      "dateText": "आज",
+      "actionUrl": "",
+      "isHot": true,
+      "isPublished": true
+    },
+    {
+      "id": "ann_02",
+      "title": "नई फुल-लेंथ मॉक टेस्ट सीरीज़ लाइव हुई",
+      "message": "पेपर 1 और पेपर 2 के लिए नवीनतम परीक्षा पैटर्न पर आधारित 150-प्रश्नों वाले मॉक टेस्ट अभ्यास हेतु उपलब्ध हैं।",
+      "dateText": "कल",
+      "actionUrl": "",
+      "isHot": true,
+      "isPublished": true
+    },
+    {
+      "id": "ann_03",
+      "title": "बाल विकास (CDP) में 120+ नए PYQ व्याख्या सहित जुड़े",
+      "message": "पियाजे, वायगोत्स्की और कोहलबर्ग के सिद्धांतों पर विगत वर्षों के प्रश्न विस्तृत हल सहित जोड़े गए हैं।",
+      "dateText": "2 दिन पहले",
+      "actionUrl": "",
+      "isHot": false,
+      "isPublished": true
+    },
+    {
+      "id": "ann_04",
+      "title": "टेलीग्राम व व्हाट्सएप स्टडी ग्रुप से जुड़ें",
+      "message": "दैनिक महत्वपूर्ण प्रश्न, पीडीएफ नोट्स और परीक्षा सूचनाओं के लिए आधिकारिक शिक्षक मंच से जुड़े रहें।",
+      "dateText": "5 दिन पहले",
+      "actionUrl": "",
+      "isHot": false,
+      "isPublished": true
+    }
+  ],
+  "socialLinks": [
+    { "platform": "WA", "label": "WhatsApp", "url": "https://whatsapp.com", "hexColor": 4280636774, "isEnabled": true },
+    { "platform": "YT", "label": "YouTube", "url": "https://youtube.com", "hexColor": 4294921797, "isEnabled": true },
+    { "platform": "X", "label": "X", "url": "https://x.com", "hexColor": 4293058800, "isEnabled": true },
+    { "platform": "FB", "label": "Facebook", "url": "https://facebook.com", "hexColor": 4282541999, "isEnabled": true },
+    { "platform": "IG", "label": "Instagram", "url": "https://instagram.com", "hexColor": 4292948076, "isEnabled": true }
+  ],
+  "appVersionText": "v4.0 • PRODUCTION BUILD",
+  "lastSyncTime": 1774929600000
+}
