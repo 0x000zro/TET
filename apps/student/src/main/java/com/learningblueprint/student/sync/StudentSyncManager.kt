@@ -19,7 +19,7 @@ object StudentSyncManager {
     private const val KEY_REMOTE_URL = "custom_remote_sync_url"
 
     // Default public endpoint (configurable by Admin or Student)
-    const val DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/learning-blueprint/content/main/announcements.json"
+    const val DEFAULT_REMOTE_URL = "https://raw.githubusercontent.com/0x000zro/TET/main/announcements.json"
 
     fun getCachedConfig(context: Context): AppConfig {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

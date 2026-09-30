@@ -24,8 +24,8 @@ object AdminRemoteSyncManager {
     private const val KEY_GH_TOKEN = "github_token"
 
     data class GitHubConfig(
-        val owner: String = "learning-blueprint",
-        val repo: String = "content",
+        val owner: String = "0x000zro",
+        val repo: String = "TET",
         val branch: String = "main",
         val path: String = "announcements.json",
         val token: String = ""
@@ -37,8 +37,8 @@ object AdminRemoteSyncManager {
     fun getGitHubConfig(context: Context): GitHubConfig {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return GitHubConfig(
-            owner = prefs.getString(KEY_GH_OWNER, "learning-blueprint") ?: "learning-blueprint",
-            repo = prefs.getString(KEY_GH_REPO, "content") ?: "content",
+            owner = prefs.getString(KEY_GH_OWNER, "0x000zro") ?: "0x000zro",
+            repo = prefs.getString(KEY_GH_REPO, "TET") ?: "TET",
             branch = prefs.getString(KEY_GH_BRANCH, "main") ?: "main",
             path = prefs.getString(KEY_GH_PATH, "announcements.json") ?: "announcements.json",
             token = prefs.getString(KEY_GH_TOKEN, "") ?: ""
