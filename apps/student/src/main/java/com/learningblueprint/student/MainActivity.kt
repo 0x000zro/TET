@@ -7,10 +7,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
+import com.learningblueprint.core.model.Chapter
 import com.learningblueprint.core.model.Exam
 import com.learningblueprint.core.model.ExamPaper
 import com.learningblueprint.core.model.Subject
 import com.learningblueprint.core.theme.LearningBlueprintTheme
+import com.learningblueprint.student.ui.chapter.ChapterRoadmapScreen
 import com.learningblueprint.student.ui.exam.ExamSelectionScreen
 import com.learningblueprint.student.ui.subject.SubjectBlueprintScreen
 import com.learningblueprint.student.ui.welcome.WelcomeScreen
@@ -19,6 +21,7 @@ sealed interface AppScreen {
     data object Welcome : AppScreen
     data object ExamSelection : AppScreen
     data class SubjectBlueprint(val exam: Exam, val paper: ExamPaper) : AppScreen
+    data class ChapterRoadmap(val exam: Exam, val paper: ExamPaper, val subject: Subject) : AppScreen
 }
 
 class MainActivity : ComponentActivity() {
@@ -65,9 +68,27 @@ class MainActivity : ComponentActivity() {
                                 currentScreen = AppScreen.ExamSelection
                             },
                             onSubjectSelected = { subject ->
+                                currentScreen = AppScreen.ChapterRoadmap(screen.exam, screen.paper, subject)
+                            }
+                        )
+                    }
+
+                    is AppScreen.ChapterRoadmap -> {
+                        BackHandler {
+                            currentScreen = AppScreen.SubjectBlueprint(screen.exam, screen.paper)
+                        }
+
+                        ChapterRoadmapScreen(
+                            exam = screen.exam,
+                            paper = screen.paper,
+                            subject = screen.subject,
+                            onBackClick = {
+                                currentScreen = AppScreen.SubjectBlueprint(screen.exam, screen.paper)
+                            },
+                            onChapterClick = { chapter ->
                                 Toast.makeText(
                                     this,
-                                    "चयनित विषय: ${subject.titleHindi}\nअगला चरण: अध्याय एवं PYQ रोडमैप (Screen 4)!",
+                                    "अध्याय: ${chapter.titleHindi}\nअगला चरण: PYQ प्रश्नोत्तरी व टेस्ट मॉड्यूल (Screen 5)!",
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
