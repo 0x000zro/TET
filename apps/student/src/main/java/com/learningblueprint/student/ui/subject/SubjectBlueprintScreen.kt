@@ -1,4 +1,5 @@
 package com.learningblueprint.student.ui.subject
+import com.learningblueprint.student.sync.StudentSyncManager
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -36,8 +37,9 @@ fun SubjectBlueprintScreen(
     onBackClick: () -> Unit,
     onSubjectSelected: (Subject) -> Unit
 ) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     val subjects = remember(exam.id, paper) {
-        Subject.getSubjectsForExam(exam.id, paper)
+        run { val c = StudentSyncManager.getCachedConfig(ctx).subjects.filter { it.examId == exam.id && it.paper == paper && it.isPublished }; if (c.isNotEmpty()) c else Subject.getSubjectsForExam(exam.id, paper) }
     }
 
     Box(

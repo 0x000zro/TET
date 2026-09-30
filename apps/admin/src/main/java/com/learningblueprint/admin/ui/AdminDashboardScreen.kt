@@ -1,5 +1,6 @@
 package com.learningblueprint.admin.ui
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -10,6 +11,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
@@ -29,10 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.learningblueprint.admin.sync.AdminRemoteSyncManager
-import com.learningblueprint.core.model.Announcement
-import com.learningblueprint.core.model.AppConfig
-import com.learningblueprint.core.model.Exam
-import com.learningblueprint.core.model.SocialLink
+import com.learningblueprint.core.model.*
 import com.learningblueprint.core.theme.*
 import kotlinx.coroutines.launch
 
@@ -40,16 +40,44 @@ import kotlinx.coroutines.launch
 fun AdminDashboardScreen() {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
 
-    var announcements by remember { mutableStateOf(AppConfig.DEFAULT.announcements) }
-    var socialLinks by remember { mutableStateOf(AppConfig.DEFAULT.socialLinks) }
-    var exams by remember { mutableStateOf(AppConfig.DEFAULT.exams) }
+    // INITIAL CACHE LOAD (Prevent reverting to defaults on restart)
+    val initConfig = remember {
+        val prefs = context.getSharedPreferences("admin_sync_store", Context.MODE_PRIVATE)
+        val json = prefs.getString("published_config", null)
+        if (json != null) AppConfig.fromJsonString(json) ?: AppConfig.DEFAULT else AppConfig.DEFAULT
+    }
+
+    // GENERATE DEFAULT MASTER LISTS IF EMPTY
+    val defaultAllSubjects = remember { Exam.ALL_EXAMS.flatMap { e -> ExamPaper.values().flatMap { p -> Subject.getSubjectsForExam(e.id, p) } } }
+    val defaultAllChapters = remember { defaultAllSubjects.map { it.code }.distinct().flatMap { c -> Chapter.getChaptersForSubject(c) }.distinctBy { it.id } }
+
+    var announcements by remember { mutableStateOf(initConfig.announcements) }
+    var socialLinks by remember { mutableStateOf(initConfig.socialLinks) }
+    var exams by remember { mutableStateOf(initConfig.exams) }
+
+    // MASTER STATES (Contains all data across all exams)
+    var allSubjects by remember { mutableStateOf(if (initConfig.subjects.isNotEmpty()) initConfig.subjects else defaultAllSubjects) }
+    var allChapters by remember { mutableStateOf(if (initConfig.chapters.isNotEmpty()) initConfig.chapters else defaultAllChapters) }
+
+    // DERIVED UI STATES (Filtered specifically for display)
+    var selectedCurriculumExam by remember { mutableStateOf(exams.firstOrNull() ?: Exam.ALL_EXAMS.first()) }
+    var selectedCurriculumPaper by remember { mutableStateOf(ExamPaper.PAPER_1) }
+    
+    val subjects = allSubjects.filter { it.examId == selectedCurriculumExam.id && it.paper == selectedCurriculumPaper }
+    
+    var selectedSubjectForChapters by remember { mutableStateOf<Subject?>(null) }
+    val chapters = if (selectedSubjectForChapters != null) allChapters.filter { it.subjectCode == selectedSubjectForChapters!!.code } else emptyList()
+
     var isPublishing by remember { mutableStateOf(false) }
 
+    // Dialog States
     var showAddNoticeDialog by remember { mutableStateOf(false) }
     var editingSocialLink by remember { mutableStateOf<SocialLink?>(null) }
     var editingExam by remember { mutableStateOf<Exam?>(null) }
+    var editingSubject by remember { mutableStateOf<Subject?>(null) }
+    var editingChapter by remember { mutableStateOf<Chapter?>(null) }
     var showCloudSettingsDialog by remember { mutableStateOf(false) }
     var gitHubConfig by remember { mutableStateOf(AdminRemoteSyncManager.getGitHubConfig(context)) }
 
@@ -58,11 +86,15 @@ fun AdminDashboardScreen() {
             isPublishing = true
             val liveNotices = announcements.filter { it.isPublished }
             val ticker = liveNotices.firstOrNull() ?: AppConfig.DEFAULT.tickerAnnouncement
+            
+            // SEND THE MASTER LISTS, NOT THE FILTERED ONES!
             val config = AppConfig(
                 tickerAnnouncement = ticker,
                 announcements = announcements,
                 socialLinks = socialLinks,
                 exams = exams,
+                subjects = allSubjects, 
+                chapters = allChapters,
                 lastSyncTime = System.currentTimeMillis()
             )
 
@@ -105,7 +137,7 @@ fun AdminDashboardScreen() {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "कंटेंट एवं सिस्टम कंट्रोल सेंटर",
+                        text = "कंटेंट एवं पाठ्यक्रम कंट्रोल सेंटर",
                         color = Color(0xFF8FC3B4),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
@@ -142,7 +174,7 @@ fun AdminDashboardScreen() {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ================= 4-TAB NAVIGATION BAR =================
+            // ================= 5-TAB NAVIGATION BAR =================
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -151,7 +183,7 @@ fun AdminDashboardScreen() {
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                listOf("🔔 सूचना", "🌐 लिंक्स", "📚 परीक्षा", "📱 सिंक").forEachIndexed { index, title ->
+                listOf("🔔 सूचना", "🌐 लिंक्स", "📚 परीक्षा", "📖 पाठ्यक्रम", "📱 सिंक").forEachIndexed { index, title ->
                     val isSelected = selectedTab == index
                     Box(
                         modifier = Modifier
@@ -165,8 +197,10 @@ fun AdminDashboardScreen() {
                         Text(
                             text = title,
                             color = if (isSelected) DeepGreenDark else PaperLight,
-                            fontSize = 11.5.sp,
-                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
+                            fontSize = 10.5.sp,
+                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -176,18 +210,13 @@ fun AdminDashboardScreen() {
 
             when (selectedTab) {
                 0 -> {
-                    // TAB 1: NOTICES
+                    // TAB 0: NOTICES (SCREEN 1)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "कुल सूचनाएं (${announcements.size})",
-                            color = PaperLight,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(text = "कुल सूचनाएं (${announcements.size})", color = PaperLight, fontSize = 15.sp, fontWeight = FontWeight.Bold)
 
                         Button(
                             onClick = { showAddNoticeDialog = true },
@@ -239,9 +268,7 @@ fun AdminDashboardScreen() {
                                                 colors = SwitchDefaults.colors(checkedThumbColor = SaffronYellow)
                                             )
                                             IconButton(
-                                                onClick = {
-                                                    announcements = announcements.filter { it.id != notice.id }
-                                                },
+                                                onClick = { announcements = announcements.filter { it.id != notice.id } },
                                                 modifier = Modifier.size(28.dp)
                                             ) {
                                                 Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color(0xFFFF6B60), modifier = Modifier.size(16.dp))
@@ -259,7 +286,7 @@ fun AdminDashboardScreen() {
                 }
 
                 1 -> {
-                    // TAB 2: SOCIAL LINKS
+                    // TAB 1: SOCIAL LINKS (SCREEN 1)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -297,18 +324,8 @@ fun AdminDashboardScreen() {
                                         SocialBrandIcon(platform = link.platform, sizeDp = 42.dp)
 
                                         Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = link.label,
-                                                color = PaperLight,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Text(
-                                                text = link.url,
-                                                color = Color(0xFF8FC3B4),
-                                                fontSize = 11.sp,
-                                                maxLines = 1
-                                            )
+                                            Text(text = link.label, color = PaperLight, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                            Text(text = link.url, color = Color(0xFF8FC3B4), fontSize = 11.sp, maxLines = 1)
                                         }
                                     }
 
@@ -342,24 +359,15 @@ fun AdminDashboardScreen() {
                 }
 
                 2 -> {
-                    // TAB 3: EXAM MANAGEMENT (SCREEN 2 ADMIN CONTROLS)
+                    // TAB 2: EXAM MANAGEMENT (SCREEN 2)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text(
-                                text = "शिक्षक पात्रता परीक्षा प्रबंधन (${exams.size})",
-                                color = PaperLight,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "छात्र ऐप में परीक्षा लाइव करने या छिपाने हेतु टॉगल करें",
-                                color = Color(0xFF8FC3B4),
-                                fontSize = 11.sp
-                            )
+                            Text(text = "शिक्षक पात्रता परीक्षा प्रबंधन (${exams.size})", color = PaperLight, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "छात्र ऐप में परीक्षा लाइव करने या छिपाने हेतु स्विच बदलें", color = Color(0xFF8FC3B4), fontSize = 11.sp)
                         }
                     }
 
@@ -373,10 +381,7 @@ fun AdminDashboardScreen() {
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
                                 color = if (exam.isPublished) Color(0x22FFFFFF) else Color(0x10FFFFFF),
-                                border = BorderStroke(
-                                    1.2.dp,
-                                    if (exam.isPublished) SaffronYellow.copy(alpha = 0.5f) else Color(0x22FFFFFF)
-                                ),
+                                border = BorderStroke(1.2.dp, if (exam.isPublished) SaffronYellow.copy(alpha = 0.5f) else Color(0x22FFFFFF)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(modifier = Modifier.padding(14.dp)) {
@@ -385,14 +390,8 @@ fun AdminDashboardScreen() {
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Surface(
-                                                shape = RoundedCornerShape(6.dp),
-                                                color = if (exam.isPublished) SaffronYellow else Color(0x33FFFFFF)
-                                            ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Surface(shape = RoundedCornerShape(6.dp), color = if (exam.isPublished) SaffronYellow else Color(0x33FFFFFF)) {
                                                 Text(
                                                     text = exam.code,
                                                     color = if (exam.isPublished) DeepGreenDark else PaperLight,
@@ -410,16 +409,10 @@ fun AdminDashboardScreen() {
                                             )
                                         }
 
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                             Button(
                                                 onClick = { editingExam = exam },
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = SaffronYellow,
-                                                    contentColor = DeepGreenDark
-                                                ),
+                                                colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
                                                 shape = RoundedCornerShape(8.dp),
                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                                 modifier = Modifier.height(30.dp)
@@ -442,28 +435,11 @@ fun AdminDashboardScreen() {
                                     }
 
                                     Spacer(modifier = Modifier.height(6.dp))
-
-                                    Text(
-                                        text = exam.titleHindi,
-                                        color = PaperLight,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-
-                                    Text(
-                                        text = exam.stateAuthority,
-                                        color = Color(0xFF8FC3B4),
-                                        fontSize = 11.sp
-                                    )
-
+                                    Text(text = exam.titleHindi, color = PaperLight, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(text = exam.stateAuthority, color = Color(0xFF8FC3B4), fontSize = 11.sp)
                                     Spacer(modifier = Modifier.height(6.dp))
 
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Surface(
                                             shape = RoundedCornerShape(99.dp),
                                             color = if (exam.isHot) VermilionRed.copy(alpha = 0.25f) else Color(0x20FFFFFF),
@@ -478,11 +454,7 @@ fun AdminDashboardScreen() {
                                             )
                                         }
 
-                                        Text(
-                                            text = "हॉट बैज:",
-                                            color = Color(0xFF8FC3B4),
-                                            fontSize = 10.5.sp
-                                        )
+                                        Text(text = "हॉट बैज:", color = Color(0xFF8FC3B4), fontSize = 10.5.sp)
 
                                         Switch(
                                             checked = exam.isHot,
@@ -502,6 +474,312 @@ fun AdminDashboardScreen() {
                 }
 
                 3 -> {
+                    // TAB 3: CURRICULUM MANAGEMENT (SCREEN 3 SUBJECTS & SCREEN 4 CHAPTERS)
+                    val activeSubject = selectedSubjectForChapters
+
+                    if (activeSubject == null) {
+                        // ================= SCREEN 3: SUBJECT MANAGEMENT =================
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(text = "विषय ब्लूप्रिंट प्रबंधन (Screen 3)", color = PaperLight, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = "परीक्षा व पेपर चुनें ➔ विषय लाइव करें या संपादित करें", color = Color(0xFF8FC3B4), fontSize = 11.sp)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Exam and Paper Level Selectors
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Exam Filter Chip
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0x20FFFFFF),
+                                    border = BorderStroke(1.dp, SaffronYellow.copy(alpha = 0.5f)),
+                                    modifier = Modifier.weight(1f).clickable {
+                                        val currentIndex = exams.indexOfFirst { it.id == selectedCurriculumExam.id }
+                                        val nextIndex = (currentIndex + 1) % exams.size
+                                        selectedCurriculumExam = exams[nextIndex]
+                                    }
+                                ) {
+                                    Column(modifier = Modifier.padding(8.dp)) {
+                                        Text("लक्ष्य परीक्षा", color = Color(0xFF8FC3B4), fontSize = 9.sp)
+                                        Text(selectedCurriculumExam.code, color = SaffronYellow, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                // Paper Tier Filter Chip
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0x20FFFFFF),
+                                    border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                                    modifier = Modifier.weight(1f).clickable {
+                                        selectedCurriculumPaper = when (selectedCurriculumPaper) {
+                                            ExamPaper.PAPER_1 -> ExamPaper.PAPER_2
+                                            ExamPaper.PAPER_2 -> ExamPaper.BOTH
+                                            ExamPaper.BOTH -> ExamPaper.PAPER_1
+                                        }
+                                    }
+                                ) {
+                                    Column(modifier = Modifier.padding(8.dp)) {
+                                        Text("तैयारी स्तर", color = Color(0xFF8FC3B4), fontSize = 9.sp)
+                                        Text(selectedCurriculumPaper.label.take(15), color = PaperLight, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(subjects, key = { it.id }) { subject ->
+                                    val accentColor = Color(subject.hexColor)
+
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = if (subject.isPublished) Color(0x20FFFFFF) else Color(0x10FFFFFF),
+                                        border = BorderStroke(1.dp, if (subject.isPublished) accentColor.copy(alpha = 0.5f) else Color(0x22FFFFFF)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    Surface(shape = RoundedCornerShape(6.dp), color = accentColor.copy(alpha = 0.2f), border = BorderStroke(0.8.dp, accentColor)) {
+                                                        Text(
+                                                            text = subject.code,
+                                                            color = accentColor,
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = if (subject.isPublished) "✓ लाइव" else "✗ ड्राफ्ट",
+                                                        color = if (subject.isPublished) Color(0xFF1C9E5F) else Color(0xFFDD4F3A),
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                    Button(
+                                                        onClick = { editingSubject = subject },
+                                                        colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                        modifier = Modifier.height(28.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(11.dp))
+                                                        Spacer(modifier = Modifier.width(3.dp))
+                                                        Text("संपादित", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                    }
+
+                                                    Switch(
+                                                        checked = subject.isPublished,
+                                                        onCheckedChange = { isChecked ->
+                                                            allSubjects = allSubjects.map {
+                                                                if (it.id == subject.id) it.copy(isPublished = isChecked) else it
+                                                            }
+                                                        },
+                                                        colors = SwitchDefaults.colors(checkedThumbColor = SaffronYellow),
+                                                        modifier = Modifier.height(24.dp)
+                                                    )
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(text = subject.titleHindi, color = PaperLight, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                            Text(text = subject.titleEnglish, color = Color(0xFF8FC3B4), fontSize = 10.5.sp)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(text = subject.descriptionHindi, color = Color(0xFFCFE0D7), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(text = "${subject.marks} अंक • ${subject.chaptersCount} अध्याय", color = SaffronYellow, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+                                                Button(
+                                                    onClick = {
+                                                        selectedSubjectForChapters = subject
+                                                    },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0x28FFFFFF), contentColor = PaperLight),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                                    modifier = Modifier.height(28.dp)
+                                                ) {
+                                                    Text("अध्याय देखें", fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "View", modifier = Modifier.size(12.dp))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // ================= SCREEN 4: CHAPTER ROADMAP MANAGEMENT =================
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = { selectedSubjectForChapters = null },
+                                    modifier = Modifier.size(34.dp).clip(CircleShape).background(Color(0x22FFFFFF))
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = PaperLight, modifier = Modifier.size(16.dp))
+                                }
+
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                Column {
+                                    Text(
+                                        text = "${activeSubject.code} • अध्याय प्रबंधन (Screen 4)",
+                                        color = PaperLight,
+                                        fontSize = 14.5.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = activeSubject.titleHindi,
+                                        color = SaffronYellow,
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(chapters, key = { it.id }) { chapter ->
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = if (chapter.isPublished) Color(0x20FFFFFF) else Color(0x10FFFFFF),
+                                        border = BorderStroke(
+                                            1.dp,
+                                            if (chapter.isHighYield) SaffronYellow.copy(alpha = 0.6f) else Color(0x24FFFFFF)
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    Surface(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        color = if (chapter.isHighYield) SaffronYellow else Color(0x28FFFFFF)
+                                                    ) {
+                                                        Text(
+                                                            text = "CH ${chapter.chapterNumber}",
+                                                            color = if (chapter.isHighYield) DeepGreenDark else PaperLight,
+                                                            fontSize = 10.5.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        )
+                                                    }
+
+                                                    Text(
+                                                        text = if (chapter.isPublished) "✓ लाइव" else "✗ ड्राफ्ट",
+                                                        color = if (chapter.isPublished) Color(0xFF1C9E5F) else Color(0xFFDD4F3A),
+                                                        fontSize = 10.5.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                    Button(
+                                                        onClick = { editingChapter = chapter },
+                                                        colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                        modifier = Modifier.height(28.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(11.dp))
+                                                        Spacer(modifier = Modifier.width(3.dp))
+                                                        Text("संपादित", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                    }
+
+                                                    Switch(
+                                                        checked = chapter.isPublished,
+                                                        onCheckedChange = { isChecked ->
+                                                            allChapters = allChapters.map {
+                                                                if (it.id == chapter.id) it.copy(isPublished = isChecked) else it
+                                                            }
+                                                        },
+                                                        colors = SwitchDefaults.colors(checkedThumbColor = SaffronYellow),
+                                                        modifier = Modifier.height(24.dp)
+                                                    )
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(text = chapter.titleHindi, color = PaperLight, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
+                                            Text(text = chapter.titleEnglish, color = Color(0xFF8FC3B4), fontSize = 10.5.sp)
+
+                                            Spacer(modifier = Modifier.height(6.dp))
+
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(99.dp),
+                                                    color = if (chapter.isHighYield) VermilionRed.copy(alpha = 0.2f) else Color(0x18FFFFFF),
+                                                    border = BorderStroke(0.8.dp, if (chapter.isHighYield) VermilionRed else Color(0x33FFFFFF))
+                                                ) {
+                                                    Text(
+                                                        text = chapter.importanceBadge,
+                                                        color = if (chapter.isHighYield) Color(0xFFFF8B80) else Color(0xFFB5C9C0),
+                                                        fontSize = 9.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                                    )
+                                                }
+
+                                                Text(text = "अति-महत्वपूर्ण:", color = Color(0xFF8FC3B4), fontSize = 10.sp)
+
+                                                Switch(
+                                                    checked = chapter.isHighYield,
+                                                    onCheckedChange = { isHighYieldChecked ->
+                                                        allChapters = allChapters.map {
+                                                            if (it.id == chapter.id) it.copy(isHighYield = isHighYieldChecked) else it
+                                                        }
+                                                    },
+                                                    colors = SwitchDefaults.colors(checkedThumbColor = VermilionRed),
+                                                    modifier = Modifier.height(22.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                4 -> {
                     // TAB 4: REMOTE SYNC STATUS
                     Surface(
                         shape = RoundedCornerShape(16.dp),
@@ -513,17 +791,13 @@ fun AdminDashboardScreen() {
                             Text(text = "🌐 क्रॉस-डिवाइस रिमोट सिंक स्थिति", color = SaffronYellow, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "अब आप किसी भी दूसरे फोन पर मौजूद स्टूडेंट ऐप में सीधे परीक्षा, नोटिस व सोशल लिंक भेज सकते हैं।",
+                                text = "अब आप किसी भी दूसरे फोन पर मौजूद स्टूडेंट ऐप में सीधे 5-स्क्रीन पाठ्यक्रम, परीक्षा, नोटिस व सोशल लिंक भेज सकते हैं।",
                                 color = Color(0xFFCFE0D7),
                                 fontSize = 12.sp,
                                 lineHeight = 18.sp
                             )
                             Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = "• GitHub रिपॉजिटरी: ${gitHubConfig.owner}/${gitHubConfig.repo} (${gitHubConfig.branch})",
-                                color = Color(0xFF1C9E5F),
-                                fontSize = 12.5.sp
-                            )
+                            Text(text = "• GitHub रिपॉजिटरी: ${gitHubConfig.owner}/${gitHubConfig.repo} (${gitHubConfig.branch})", color = Color(0xFF1C9E5F), fontSize = 12.5.sp)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(text = "• पब्लिक रॉ URL: ${gitHubConfig.rawUrl}", color = Color(0xFF8FC3B4), fontSize = 10.5.sp)
                             Spacer(modifier = Modifier.height(10.dp))
@@ -535,6 +809,122 @@ fun AdminDashboardScreen() {
                             ) {
                                 Text("क्लाउड / GitHub सेटिंग्स बदलें", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ================= SUBJECT EDIT DIALOG (SCREEN 3) =================
+    editingSubject?.let { currentSubject ->
+        var editTitleHindi by remember { mutableStateOf(currentSubject.titleHindi) }
+        var editTitleEnglish by remember { mutableStateOf(currentSubject.titleEnglish) }
+        var editDescription by remember { mutableStateOf(currentSubject.descriptionHindi) }
+        var editMarks by remember { mutableStateOf(currentSubject.marks.toString()) }
+
+        Dialog(onDismissRequest = { editingSubject = null }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0A2E26)),
+                border = BorderStroke(1.2.dp, SaffronYellow.copy(alpha = 0.7f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text(text = "${currentSubject.code} विषय विवरण संपादित करें", color = PaperLight, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(value = editTitleHindi, onValueChange = { editTitleHindi = it }, label = { Text("विषय का नाम (हिंदी)") }, modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(value = editTitleEnglish, onValueChange = { editTitleEnglish = it }, label = { Text("Subject Name (English)") }, modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(value = editDescription, onValueChange = { editDescription = it }, label = { Text("सिलेबस विवरण") }, modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(value = editMarks, onValueChange = { editMarks = it }, label = { Text("कुल अंक वेटेज") }, modifier = Modifier.fillMaxWidth())
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { editingSubject = null }, modifier = Modifier.weight(1f)) {
+                            Text("रद्द करें", color = PaperLight)
+                        }
+
+                        Button(
+                            onClick = {
+                                val parsedMarks = editMarks.toIntOrNull() ?: currentSubject.marks
+                                allSubjects = allSubjects.map {
+                                    if (it.id == currentSubject.id) it.copy(
+                                        titleHindi = editTitleHindi.trim(),
+                                        titleEnglish = editTitleEnglish.trim(),
+                                        descriptionHindi = editDescription.trim(),
+                                        marks = parsedMarks
+                                    ) else it
+                                }
+                                editingSubject = null
+                                Toast.makeText(context, "${currentSubject.code} अपडेट हुआ! पब्लिश करें दबाएँ।", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("सुरक्षित करें", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ================= CHAPTER EDIT DIALOG (SCREEN 4) =================
+    editingChapter?.let { currentChapter ->
+        var editTitleHindi by remember { mutableStateOf(currentChapter.titleHindi) }
+        var editTitleEnglish by remember { mutableStateOf(currentChapter.titleEnglish) }
+        var editBadgeText by remember { mutableStateOf(currentChapter.importanceBadge) }
+        var editPyqCount by remember { mutableStateOf(currentChapter.pyqCount.toString()) }
+
+        Dialog(onDismissRequest = { editingChapter = null }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0A2E26)),
+                border = BorderStroke(1.2.dp, SaffronYellow.copy(alpha = 0.7f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text(text = "CH ${currentChapter.chapterNumber} विवरण संपादित करें", color = PaperLight, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(value = editTitleHindi, onValueChange = { editTitleHindi = it }, label = { Text("अध्याय का नाम (हिंदी)") }, modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(value = editTitleEnglish, onValueChange = { editTitleEnglish = it }, label = { Text("Chapter Name (English)") }, modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(value = editBadgeText, onValueChange = { editBadgeText = it }, label = { Text("महत्व बैज (e.g. ★ 4-5 प्रश्न)") }, modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(value = editPyqCount, onValueChange = { editPyqCount = it }, label = { Text("PYQ प्रश्नों की संख्या") }, modifier = Modifier.fillMaxWidth())
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { editingChapter = null }, modifier = Modifier.weight(1f)) {
+                            Text("रद्द करें", color = PaperLight)
+                        }
+
+                        Button(
+                            onClick = {
+                                val parsedPyq = editPyqCount.toIntOrNull() ?: currentChapter.pyqCount
+                                allChapters = allChapters.map {
+                                    if (it.id == currentChapter.id) it.copy(
+                                        titleHindi = editTitleHindi.trim(),
+                                        titleEnglish = editTitleEnglish.trim(),
+                                        importanceBadge = editBadgeText.trim(),
+                                        pyqCount = parsedPyq
+                                    ) else it
+                                }
+                                editingChapter = null
+                                Toast.makeText(context, "अध्याय ${currentChapter.chapterNumber} अपडेट हुआ!", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("सुरक्षित करें", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -556,51 +946,18 @@ fun AdminDashboardScreen() {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "${currentExam.code} विवरण संपादित करें",
-                        color = PaperLight,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
+                    Text(text = "${currentExam.code} विवरण संपादित करें", color = PaperLight, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = editTitleHindi,
-                        onValueChange = { editTitleHindi = it },
-                        label = { Text("परीक्षा का नाम (हिंदी)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
+                    OutlinedTextField(value = editTitleHindi, onValueChange = { editTitleHindi = it }, label = { Text("परीक्षा का नाम (हिंदी)") }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = editBadgeText,
-                        onValueChange = { editBadgeText = it },
-                        label = { Text("बैज टैक्स्ट (e.g. ★ सत्र 2026 लाइव)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
+                    OutlinedTextField(value = editBadgeText, onValueChange = { editBadgeText = it }, label = { Text("बैज टैक्स्ट") }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = editAuthority,
-                        onValueChange = { editAuthority = it },
-                        label = { Text("परीक्षा प्राधिकरण (Authority)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    OutlinedTextField(value = editAuthority, onValueChange = { editAuthority = it }, label = { Text("परीक्षा प्राधिकरण") }, modifier = Modifier.fillMaxWidth())
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { editingExam = null },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { editingExam = null }, modifier = Modifier.weight(1f)) {
                             Text("रद्द करें", color = PaperLight)
                         }
 
@@ -614,11 +971,10 @@ fun AdminDashboardScreen() {
                                     ) else it
                                 }
                                 editingExam = null
-                                Toast.makeText(context, "${currentExam.code} अपडेट हुआ! पब्लिश करें दबाएँ।", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "${currentExam.code} अपडेट हुआ!", Toast.LENGTH_SHORT).show()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
+                            modifier = Modifier.weight(1f)
                         ) {
                             Text("सुरक्षित करें", fontWeight = FontWeight.Bold)
                         }
@@ -628,7 +984,7 @@ fun AdminDashboardScreen() {
         }
     }
 
-    // ================= RESTORED EDIT SOCIAL LINK DIALOG =================
+    // ================= EDIT SOCIAL LINK DIALOG =================
     editingSocialLink?.let { currentLink ->
         var editLabel by remember { mutableStateOf(currentLink.label) }
         var editUrl by remember { mutableStateOf(currentLink.url) }
@@ -643,61 +999,31 @@ fun AdminDashboardScreen() {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         SocialBrandIcon(platform = currentLink.platform, sizeDp = 32.dp)
-                        Text(
-                            text = "${currentLink.platform} लिंक बदलें",
-                            color = PaperLight,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(text = "${currentLink.platform} लिंक बदलें", color = PaperLight, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = editLabel,
-                        onValueChange = { editLabel = it },
-                        label = { Text("चैनल नाम (Label)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
+                    OutlinedTextField(value = editLabel, onValueChange = { editLabel = it }, label = { Text("चैनल नाम (Label)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = editUrl,
-                        onValueChange = { editUrl = it },
-                        label = { Text("लिंक URL (https://...)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    OutlinedTextField(value = editUrl, onValueChange = { editUrl = it }, label = { Text("लिंक URL (https://...)") }, modifier = Modifier.fillMaxWidth())
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { editingSocialLink = null },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { editingSocialLink = null }, modifier = Modifier.weight(1f)) {
                             Text("रद्द करें", color = PaperLight)
                         }
 
                         Button(
                             onClick = {
                                 socialLinks = socialLinks.map {
-                                    if (it.platform == currentLink.platform) it.copy(
-                                        label = editLabel.trim(),
-                                        url = editUrl.trim()
-                                    ) else it
+                                    if (it.platform == currentLink.platform) it.copy(label = editLabel.trim(), url = editUrl.trim()) else it
                                 }
                                 editingSocialLink = null
-                                Toast.makeText(context, "${currentLink.platform} लिंक अपडेट हुआ! पब्लिश करें दबाएँ।", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "${currentLink.platform} लिंक अपडेट हुआ!", Toast.LENGTH_SHORT).show()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = SaffronYellow, contentColor = DeepGreenDark),
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
+                            modifier = Modifier.weight(1f)
                         ) {
                             Text("सुरक्षित करें", fontWeight = FontWeight.Bold)
                         }
@@ -711,7 +1037,6 @@ fun AdminDashboardScreen() {
     if (showAddNoticeDialog) {
         var newTitle by remember { mutableStateOf("") }
         var newMessage by remember { mutableStateOf("") }
-        var isHot by remember { mutableStateOf(true) }
 
         Dialog(onDismissRequest = { showAddNoticeDialog = false }) {
             Card(
@@ -723,29 +1048,12 @@ fun AdminDashboardScreen() {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(text = "नया नोटिस लिखें", color = PaperLight, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedTextField(
-                        value = newTitle,
-                        onValueChange = { newTitle = it },
-                        label = { Text("शीर्षक (Title)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
+                    OutlinedTextField(value = newTitle, onValueChange = { newTitle = it }, label = { Text("शीर्षक (Title)") }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = newMessage,
-                        onValueChange = { newMessage = it },
-                        label = { Text("संदेश (Message)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
+                    OutlinedTextField(value = newMessage, onValueChange = { newMessage = it }, label = { Text("संदेश (Message)") }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { showAddNoticeDialog = false }, modifier = Modifier.weight(1f)) {
                             Text("रद्द करें", color = PaperLight)
                         }
@@ -758,7 +1066,7 @@ fun AdminDashboardScreen() {
                                         title = newTitle.trim(),
                                         message = newMessage.trim(),
                                         dateText = "अभी",
-                                        isHot = isHot,
+                                        isHot = true,
                                         isPublished = true
                                     )
                                     announcements = listOf(item) + announcements
@@ -794,20 +1102,16 @@ fun AdminDashboardScreen() {
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(text = "⚙ GitHub / क्लाउड सेटिंग्स", color = PaperLight, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(text = "अन्य फोन पर ऑटो-सिंक हेतु अपनी GitHub रिपॉजिटरी कॉन्फ़िगर करें:", color = Color(0xFF8FC3B4), fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(10.dp))
-
                     OutlinedTextField(value = owner, onValueChange = { owner = it }, label = { Text("Repo Owner / Username") }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(6.dp))
                     OutlinedTextField(value = repo, onValueChange = { repo = it }, label = { Text("Repository Name") }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedTextField(value = branch, onValueChange = { branch = it }, label = { Text("Branch (e.g. main)") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = branch, onValueChange = { branch = it }, label = { Text("Branch") }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedTextField(value = path, onValueChange = { path = it }, label = { Text("File Path (e.g. announcements.json)") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = path, onValueChange = { path = it }, label = { Text("File Path") }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedTextField(value = token, onValueChange = { token = it }, label = { Text("GitHub Token (PAT with repo write)") }, modifier = Modifier.fillMaxWidth())
-
+                    OutlinedTextField(value = token, onValueChange = { token = it }, label = { Text("GitHub Token (PAT)") }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

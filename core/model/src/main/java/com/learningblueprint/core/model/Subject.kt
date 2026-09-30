@@ -14,7 +14,8 @@ data class Subject(
     val chaptersCount: Int,
     val descriptionHindi: String,
     val badgeText: String = "आधिकारिक पाठ्यक्रम",
-    val hexColor: Long = 0xFF1C9E5F
+    val hexColor: Long = 0xFF1C9E5F,
+    val isPublished: Boolean = true
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
@@ -29,6 +30,7 @@ data class Subject(
         put("descriptionHindi", descriptionHindi)
         put("badgeText", badgeText)
         put("hexColor", hexColor)
+        put("isPublished", isPublished)
     }
 
     companion object {
@@ -44,7 +46,8 @@ data class Subject(
             chaptersCount = obj.optInt("chaptersCount", 10),
             descriptionHindi = obj.optString("descriptionHindi", ""),
             badgeText = obj.optString("badgeText", "आधिकारिक पाठ्यक्रम"),
-            hexColor = obj.optLong("hexColor", 0xFF1C9E5F)
+            hexColor = obj.optLong("hexColor", 0xFF1C9E5F),
+            isPublished = obj.optBoolean("isPublished", true)
         )
 
         fun getSubjectsForExam(examId: String, paper: ExamPaper): List<Subject> {
@@ -60,7 +63,7 @@ data class Subject(
                 chaptersCount = 15,
                 descriptionHindi = "विकास की अवधारणा, पियाजे, वायगोत्स्की, कोहलबर्ग, समावेशी शिक्षा व अधिगम सिद्धांत",
                 badgeText = "अनिवार्य विषय",
-                hexColor = 0xFFF6A91B // Golden Saffron
+                hexColor = 0xFFF6A91B
             )
 
             val baseHindi = Subject(
@@ -75,7 +78,7 @@ data class Subject(
                 chaptersCount = 10,
                 descriptionHindi = "अपठित गद्यांश/पद्यांश, व्याकरण, भाषाई कौशल (LSRW) एवं भाषा शिक्षण विधियां",
                 badgeText = "अनिवार्य भाषा",
-                hexColor = 0xFF1C9E5F // Emerald Green
+                hexColor = 0xFF1C9E5F
             )
 
             val baseLang2 = Subject(
@@ -90,7 +93,7 @@ data class Subject(
                 chaptersCount = 10,
                 descriptionHindi = "व्याकरण, अपठित बोध, संप्रेषण क्षमता एवं द्वितीय भाषा शिक्षण शास्त्र",
                 badgeText = "वैकल्पिक भाषा",
-                hexColor = 0xFF0288D1 // Cobalt Blue
+                hexColor = 0xFF0288D1
             )
 
             return when (paper) {
@@ -108,7 +111,7 @@ data class Subject(
                         chaptersCount = 14,
                         descriptionHindi = "संख्या पद्धति, संक्रियाएं, ज्यामिति, मापन, भार, समय, आयतन एवं गणितीय चिंतन",
                         badgeText = "15 विषय + 15 पेडागॉजी",
-                        hexColor = 0xFF8E24AA // Royal Purple
+                        hexColor = 0xFF8E24AA
                     ),
                     Subject(
                         id = "${examId}_evs_p1",
@@ -122,7 +125,7 @@ data class Subject(
                         chaptersCount = 12,
                         descriptionHindi = "परिवार व मित्र, भोजन, आश्रय, जल, यात्रा, वस्तुएं जो हम बनाते हैं व EVS पेडागॉजी",
                         badgeText = "NCERT कक्षा 3-5 सार",
-                        hexColor = 0xFF2E7D32 // Forest Green
+                        hexColor = 0xFF2E7D32
                     ),
                     baseHindi,
                     baseLang2
@@ -142,7 +145,7 @@ data class Subject(
                         chaptersCount = 22,
                         descriptionHindi = "बीजगणित, ज्यामिति, भौतिक, रसायन, जीव विज्ञान एवं विज्ञान शिक्षण शास्त्र",
                         badgeText = "विज्ञान वर्ग (60 अंक)",
-                        hexColor = 0xFFD32F2F // Deep Crimson
+                        hexColor = 0xFFD32F2F
                     ),
                     Subject(
                         id = "${examId}_sst_p2",
@@ -156,7 +159,7 @@ data class Subject(
                         chaptersCount = 24,
                         descriptionHindi = "इतिहास, भूगोल, सामाजिक व राजनीतिक जीवन (नागरिक शास्त्र) एवं SST पेडागॉजी",
                         badgeText = "कला वर्ग (60 अंक)",
-                        hexColor = 0xFFE65100 // Deep Amber
+                        hexColor = 0xFFE65100
                     ),
                     baseHindi,
                     baseLang2

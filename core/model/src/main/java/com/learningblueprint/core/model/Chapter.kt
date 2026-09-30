@@ -13,7 +13,8 @@ data class Chapter(
     val isHighYield: Boolean = false,
     val pyqCount: Int,
     val keyConcepts: List<String>,
-    val weightageText: String
+    val weightageText: String,
+    val isPublished: Boolean = true
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
@@ -28,6 +29,7 @@ data class Chapter(
         keyConcepts.forEach { arr.put(it) }
         put("keyConcepts", arr)
         put("weightageText", weightageText)
+        put("isPublished", isPublished)
     }
 
     companion object {
@@ -49,7 +51,8 @@ data class Chapter(
                 isHighYield = obj.optBoolean("isHighYield", false),
                 pyqCount = obj.optInt("pyqCount", 20),
                 keyConcepts = concepts,
-                weightageText = obj.optString("weightageText", "")
+                weightageText = obj.optString("weightageText", ""),
+                isPublished = obj.optBoolean("isPublished", true)
             )
         }
 

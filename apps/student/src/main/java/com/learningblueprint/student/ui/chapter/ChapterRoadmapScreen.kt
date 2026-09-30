@@ -1,4 +1,5 @@
 package com.learningblueprint.student.ui.chapter
+import com.learningblueprint.student.sync.StudentSyncManager
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
@@ -38,8 +39,9 @@ fun ChapterRoadmapScreen(
     onBackClick: () -> Unit,
     onChapterClick: (Chapter) -> Unit
 ) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     val allChapters = remember(subject.code) {
-        Chapter.getChaptersForSubject(subject.code)
+        run { val c = StudentSyncManager.getCachedConfig(ctx).chapters.filter { it.subjectCode == subject.code && it.isPublished }; if (c.isNotEmpty()) c else Chapter.getChaptersForSubject(subject.code) }
     }
 
     var showOnlyHighYield by remember { mutableStateOf(false) }

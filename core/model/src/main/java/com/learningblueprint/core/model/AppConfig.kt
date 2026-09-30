@@ -66,6 +66,9 @@ data class AppConfig(
     val announcements: List<Announcement>,
     val socialLinks: List<SocialLink>,
     val exams: List<Exam> = Exam.ALL_EXAMS,
+    val subjects: List<Subject> = emptyList(),
+    val chapters: List<Chapter> = emptyList(),
+    val questions: List<Question> = emptyList(),
     val appVersionText: String = "v4.0 • PRODUCTION BUILD",
     val lastSyncTime: Long = System.currentTimeMillis()
 ) {
@@ -83,6 +86,18 @@ data class AppConfig(
         val examArray = JSONArray()
         exams.forEach { examArray.put(it.toJson()) }
         root.put("exams", examArray)
+
+        val subjectArray = JSONArray()
+        subjects.forEach { subjectArray.put(it.toJson()) }
+        root.put("subjects", subjectArray)
+
+        val chapterArray = JSONArray()
+        chapters.forEach { chapterArray.put(it.toJson()) }
+        root.put("chapters", chapterArray)
+
+        val questionArray = JSONArray()
+        questions.forEach { questionArray.put(it.toJson()) }
+        root.put("questions", questionArray)
 
         root.put("appVersionText", appVersionText)
         root.put("lastSyncTime", lastSyncTime)
@@ -135,12 +150,16 @@ data class AppConfig(
                 SocialLink("FB", "Facebook", "https://facebook.com", 0xFF4267B2),
                 SocialLink("IG", "Instagram", "https://instagram.com", 0xFFE1306C)
             ),
-            exams = Exam.ALL_EXAMS
+            exams = Exam.ALL_EXAMS,
+            subjects = emptyList(),
+            chapters = emptyList(),
+            questions = emptyList()
         )
 
         fun fromJsonString(jsonString: String): AppConfig? {
             return try {
                 val root = JSONObject(jsonString)
+
                 val noticeList = mutableListOf<Announcement>()
                 val noticeArr = root.optJSONArray("announcements")
                 if (noticeArr != null) {
@@ -165,6 +184,30 @@ data class AppConfig(
                     }
                 }
 
+                val subjectList = mutableListOf<Subject>()
+                val subjectArr = root.optJSONArray("subjects")
+                if (subjectArr != null) {
+                    for (i in 0 until subjectArr.length()) {
+                        subjectList.add(Subject.fromJson(subjectArr.getJSONObject(i)))
+                    }
+                }
+
+                val chapterList = mutableListOf<Chapter>()
+                val chapterArr = root.optJSONArray("chapters")
+                if (chapterArr != null) {
+                    for (i in 0 until chapterArr.length()) {
+                        chapterList.add(Chapter.fromJson(chapterArr.getJSONObject(i)))
+                    }
+                }
+
+                val questionList = mutableListOf<Question>()
+                val questionArr = root.optJSONArray("questions")
+                if (questionArr != null) {
+                    for (i in 0 until questionArr.length()) {
+                        questionList.add(Question.fromJson(questionArr.getJSONObject(i)))
+                    }
+                }
+
                 val liveNotices = noticeList.filter { it.isPublished }
                 val ticker = liveNotices.firstOrNull() ?: DEFAULT.tickerAnnouncement
 
@@ -173,6 +216,9 @@ data class AppConfig(
                     announcements = if (liveNotices.isNotEmpty()) liveNotices else DEFAULT.announcements,
                     socialLinks = if (socialList.isNotEmpty()) socialList else DEFAULT.socialLinks,
                     exams = if (examList.isNotEmpty()) examList else DEFAULT.exams,
+                    subjects = subjectList,
+                    chapters = chapterList,
+                    questions = questionList,
                     appVersionText = root.optString("appVersionText", DEFAULT.appVersionText),
                     lastSyncTime = root.optLong("lastSyncTime", System.currentTimeMillis())
                 )
